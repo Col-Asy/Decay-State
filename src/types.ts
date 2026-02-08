@@ -1,0 +1,19 @@
+export interface Task {
+  id: string;
+  label: string;
+  completed: boolean;
+}
+
+export interface ChatMessage {
+  id: string;
+  sender: "user" | "ai";
+  text: string;
+  timestamp: number;
+}
+
+export interface UserState {
+  name: string;
+  goal: string;
+  integrity: number; // 0-100
+  image_url: string; // URL to the generation
+}
