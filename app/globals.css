@@ -1,0 +1,127 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #000000;
+  --color-foreground: #ffffff;
+  --color-accent: #d4ff00;
+  --color-muted: #444444;
+  --color-border: #222222;
+
+  --font-sans: var(--font-inter), sans-serif;
+  --font-display: var(--font-space-display), sans-serif;
+}
+
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+  --accent: #d4ff00;
+  /* Precise Neon Lime */
+  --accent-foreground: #000000;
+  --muted: #444444;
+  --muted-foreground: #888888;
+  --border: #222222;
+  --glow: rgba(212, 255, 0, 0.4);
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground overflow-x-hidden;
+    font-family: 'Space Grotesk', sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .text-outline {
+    -webkit-text-stroke: 1px var(--accent);
+    color: transparent;
+  }
+
+  .frame-border {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    border-radius: 20px;
+  }
+
+  .frame-notch::after {
+    content: '';
+    position: absolute;
+    top: -1px;
+    right: 40px;
+    width: 100px;
+    height: 10px;
+    background: #000;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+@layer components {
+  .cyber-border {
+    @apply border border-border relative;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+  }
+
+  .glow-text {
+    text-shadow: 0 0 10px var(--glow);
+  }
+
+  .glitch {
+    position: relative;
+  }
+
+  /* Glitch Keyframes and Styles */
+}
+
+@keyframes glitch-anim {
+  0% {
+    clip: rect(31px, 9999px, 94px, 0);
+  }
+
+  20% {
+    clip: rect(62px, 9999px, 42px, 0);
+  }
+
+  40% {
+    clip: rect(16px, 9999px, 78px, 0);
+  }
+
+  60% {
+    clip: rect(89px, 9999px, 13px, 0);
+  }
+
+  80% {
+    clip: rect(45px, 9999px, 56px, 0);
+  }
+
+  100% {
+    clip: rect(23px, 9999px, 82px, 0);
+  }
+}
+
+@keyframes glitch-anim2 {
+  0% {
+    clip: rect(25px, 9999px, 10px, 0);
+  }
+
+  20% {
+    clip: rect(12px, 9999px, 34px, 0);
+  }
+
+  40% {
+    clip: rect(56px, 9999px, 22px, 0);
+  }
+
+  60% {
+    clip: rect(33px, 9999px, 45px, 0);
+  }
+
+  80% {
+    clip: rect(12px, 9999px, 67px, 0);
+  }
+
+  100% {
+    clip: rect(45px, 9999px, 11px, 0);
+  }
+}
