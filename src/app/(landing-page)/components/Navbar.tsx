@@ -17,7 +17,7 @@ export const Navbar = () => {
 
       <div className="hidden md:flex gap-8 text-[10px] tracking-[0.2em] font-medium text-muted-foreground uppercase">
         <a href="#manifesto" className="hover:text-accent transition-colors">
-          Manifesto
+          / Manifesto
         </a>
         <a href="#features" className="hover:text-accent transition-colors">
           / Features

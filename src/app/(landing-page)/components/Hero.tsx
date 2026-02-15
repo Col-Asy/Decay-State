@@ -84,7 +84,7 @@ export const Hero = () => {
               onClick={() => scrollTo("manifesto")}
               className="hover:text-accent transition-colors"
             >
-              Manifesto
+              / Manifesto
             </a>
             <a
               onClick={() => scrollTo("features")}
