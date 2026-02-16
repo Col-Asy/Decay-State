@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Roboto_Mono, Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { GlobalSearch } from "@/components/GlobalSearch";
 
 const robotoMono = Roboto_Mono({
   variable: "--font-mono",
@@ -38,6 +39,7 @@ export default function RootLayout({
         className={`${robotoMono.variable} antialiased bg-black text-white min-h-screen`}
       >
         {children}
+        <GlobalSearch />
       </body>
     </html>
   );

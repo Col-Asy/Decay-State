@@ -3,6 +3,7 @@
 import React from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Share2, Twitter, MessageSquare, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 
 const HeroFace = () => {
   return (
@@ -79,25 +80,28 @@ export const Hero = () => {
             </span>
           </div>
 
-          <div className="flex gap-8 text-[9px] font-bold tracking-[0.2em] text-white/50 uppercase cursor-pointer">
-            <a
-              onClick={() => scrollTo("manifesto")}
-              className="hover:text-accent transition-colors"
-            >
-              / Manifesto
-            </a>
-            <a
-              onClick={() => scrollTo("features")}
-              className="hover:text-accent transition-colors"
-            >
-              / Features
-            </a>
-            <a
-              onClick={() => scrollTo("pricing")}
-              className="hover:text-accent transition-colors"
-            >
-              / Pricing
-            </a>
+          <div className="hidden md:flex items-center gap-8">
+            {/* Navigation Links */}
+            <div className="flex gap-6 text-[9px] font-bold tracking-[0.2em] text-white/50 uppercase cursor-pointer">
+              <a
+                onClick={() => scrollTo("manifesto")}
+                className="hover:text-accent transition-colors"
+              >
+                / Manifesto
+              </a>
+              <a
+                onClick={() => scrollTo("features")}
+                className="hover:text-accent transition-colors"
+              >
+                / Features
+              </a>
+              <a
+                onClick={() => scrollTo("pricing")}
+                className="hover:text-accent transition-colors"
+              >
+                / Pricing
+              </a>
+            </div>
           </div>
         </div>
 
@@ -120,12 +124,34 @@ export const Hero = () => {
             <motion.h1
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              className="font-display font-black text-[80px] md:text-[110px] lg:text-[140px] leading-[0.85] tracking-tighter uppercase"
+              className="font-display font-black text-[70px] md:text-[100px] lg:text-[130px] leading-[0.85] tracking-tighter uppercase"
             >
               <span className="text-accent block">EXECUTE</span>
               <span className="text-outline block my-2">OR</span>
               <span className="text-accent block">DECAY</span>
             </motion.h1>
+
+            {/* Center Bottom CTAs */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="flex flex-col md:flex-row gap-4 mt-8"
+            >
+              <Button
+                className="h-10 px-6 bg-transparent text-accent border border-accent hover:bg-accent/10 font-bold text-[10px] tracking-widest"
+                onClick={() => window.location.href = '/signup'}
+              >
+                Join Protocol
+              </Button>
+              <Button
+                variant="ghost"
+                className="h-10 px-6 text-[10px] tracking-[0.2em] text-white border border-white/20 hover:border-white/50 hover:bg-white/5"
+                onClick={() => window.location.href = '/login'}
+              >
+                Resume Protocol
+              </Button>
+            </motion.div>
           </div>
 
           {/* Right Side Description */}
