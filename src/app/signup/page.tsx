@@ -1,20 +1,29 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, ShieldCheck, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import Link from "next/link";
+import { auth } from "@/lib/auth";
 
 export default function SignupPage() {
+    const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [name, setName] = useState("");
+    const [email, setEmail] = useState("");
 
-    const handleSignup = (e: React.FormEvent) => {
+    const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        // Simulate signup delay
-        setTimeout(() => setLoading(false), 2000);
+
+        // Simulate delay
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        auth.signup(name, email);
+        router.push("/dashboard");
     };
 
     return (
@@ -60,6 +69,8 @@ export default function SignupPage() {
                                     <Input
                                         type="text"
                                         placeholder="YOUR NAME"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
                                         className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-accent/50 h-11 font-mono text-sm"
                                     />
                                 </div>
@@ -69,6 +80,8 @@ export default function SignupPage() {
                                     <Input
                                         type="email"
                                         placeholder="EMAIL ADDRESS"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
                                         className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-accent/50 h-11 font-mono text-sm"
                                     />
                                 </div>

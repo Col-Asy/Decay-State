@@ -2,6 +2,8 @@ export interface Task {
   id: string;
   label: string;
   completed: boolean;
+  category: "physical" | "intellectual" | "spiritual";
+  rationale?: string; // AI explanation for *why* this is needed
 }
 
 export interface ChatMessage {

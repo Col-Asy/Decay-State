@@ -1,20 +1,35 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, ShieldAlert, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import Link from "next/link";
+import { auth } from "@/lib/auth";
 
 export default function LoginPage() {
+    const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        // Simulate login delay
-        setTimeout(() => setLoading(false), 2000);
+        setError("");
+
+        // Simulate network delay for effect
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        if (auth.login(username, password)) {
+            router.push("/dashboard");
+        } else {
+            setError("ACCESS DENIED: Invalid Credentials");
+            setLoading(false);
+        }
     };
 
     return (
@@ -55,11 +70,18 @@ export default function LoginPage() {
 
                         <form onSubmit={handleLogin} className="space-y-6">
                             <div className="space-y-4">
+                                {error && (
+                                    <div className="text-red-500 text-[10px] uppercase tracking-widest bg-red-500/10 p-2 border border-red-500/20">
+                                        {error}
+                                    </div>
+                                )}
                                 <div className="space-y-1">
                                     <label className="text-[10px] uppercase tracking-[0.2em] text-white/60">Identity Name</label>
                                     <Input
                                         type="text"
-                                        placeholder="USER_ID / EMAIL"
+                                        placeholder="USER_ID"
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
                                         className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-accent/50 h-11 font-mono text-sm"
                                     />
                                 </div>
@@ -68,7 +90,9 @@ export default function LoginPage() {
                                     <label className="text-[10px] uppercase tracking-[0.2em] text-white/60">Passcode</label>
                                     <Input
                                         type="password"
-                                        placeholder="••••••••••••"
+                                        placeholder="PASSCODE"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
                                         className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-accent/50 h-11 font-mono text-sm"
                                     />
                                 </div>
@@ -87,9 +111,9 @@ export default function LoginPage() {
                                 <Link href="/signup" className="hover:text-white transition-colors">
                                     Initialize New Protocol
                                 </Link>
-                                <Link href="#" className="hover:text-accent transition-colors">
-                                    Lost Access?
-                                </Link>
+                                <div className="text-[8px]">
+                                    Use: admin / password
+                                </div>
                             </div>
                         </form>
                     </div>

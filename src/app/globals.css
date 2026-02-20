@@ -1,10 +1,15 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 :root {
-  --background: #09090b; /* zinc-950 */
-  --foreground: #fafafa; /* zinc-50 */
-  --accent-red: #ef4444; /* red-500 */
-  --accent-blue: #0ea5e9; /* sky-500 */
+  --background: #09090b;
+  /* zinc-950 */
+  --foreground: #fafafa;
+  /* zinc-50 */
+  --accent-red: #ef4444;
+  /* red-500 */
+  --accent-blue: #0ea5e9;
+  /* sky-500 */
   --font-mono: 'Roboto Mono', monospace;
   --accent: #d4ff00;
   --accent-foreground: #000000;
@@ -92,21 +97,55 @@ body {
 }
 
 @keyframes glitch-anim {
-  0% { clip: rect(31px, 9999px, 94px, 0); }
-  20% { clip: rect(62px, 9999px, 42px, 0); }
-  40% { clip: rect(16px, 9999px, 78px, 0); }
-  60% { clip: rect(89px, 9999px, 13px, 0); }
-  80% { clip: rect(45px, 9999px, 56px, 0); }
-  100% { clip: rect(23px, 9999px, 82px, 0); }
+  0% {
+    clip: rect(31px, 9999px, 94px, 0);
+  }
+
+  20% {
+    clip: rect(62px, 9999px, 42px, 0);
+  }
+
+  40% {
+    clip: rect(16px, 9999px, 78px, 0);
+  }
+
+  60% {
+    clip: rect(89px, 9999px, 13px, 0);
+  }
+
+  80% {
+    clip: rect(45px, 9999px, 56px, 0);
+  }
+
+  100% {
+    clip: rect(23px, 9999px, 82px, 0);
+  }
 }
 
 @keyframes glitch-anim2 {
-  0% { clip: rect(25px, 9999px, 10px, 0); }
-  20% { clip: rect(12px, 9999px, 34px, 0); }
-  40% { clip: rect(56px, 9999px, 22px, 0); }
-  60% { clip: rect(33px, 9999px, 45px, 0); }
-  80% { clip: rect(12px, 9999px, 67px, 0); }
-  100% { clip: rect(45px, 9999px, 11px, 0); }
+  0% {
+    clip: rect(25px, 9999px, 10px, 0);
+  }
+
+  20% {
+    clip: rect(12px, 9999px, 34px, 0);
+  }
+
+  40% {
+    clip: rect(56px, 9999px, 22px, 0);
+  }
+
+  60% {
+    clip: rect(33px, 9999px, 45px, 0);
+  }
+
+  80% {
+    clip: rect(12px, 9999px, 67px, 0);
+  }
+
+  100% {
+    clip: rect(45px, 9999px, 11px, 0);
+  }
 }
 
 @import "tw-animate-css";
@@ -227,7 +266,79 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Custom Cyber Scrollbar - FORCED */
+::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: #09090b !important;
+  /* matches zinc-950/black */
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 0px !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent) !important;
+  box-shadow: 0 0 10px var(--accent) !important;
+}
+
+/* Firefox */
+html {
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--accent) #09090b !important;
+}
+
+/* Cyber Slider - Globally Enforced */
+.cyber-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  outline: none;
+  opacity: 0.8;
+  transition: opacity .2s;
+}
+
+.cyber-slider:hover {
+  opacity: 1;
+}
+
+.cyber-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #d4ff00 !important;
+  cursor: pointer;
+  box-shadow: 0 0 10px #d4ff00 !important;
+  transition: transform 0.1s ease;
+}
+
+.cyber-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 15px #d4ff00 !important;
+}
+
+.cyber-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #d4ff00 !important;
+  cursor: pointer;
+  box-shadow: 0 0 10px #d4ff00 !important;
+  transition: transform 0.1s ease;
 }
