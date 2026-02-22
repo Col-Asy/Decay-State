@@ -6,13 +6,23 @@ import { ChatMessage } from "@/types";
 import { Send, Plus, Target, Check, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { logActivity } from "@/lib/activityLog";
+import { useAuth } from "@/context/AuthContext";
+import { addMandate } from "@/lib/db/mandates";
+import { upsertActiveMission } from "@/lib/db/mission";
+import { getMandates } from "@/lib/db/mandates";
+import { getJournalEntries } from "@/lib/db/journal";
+import { getActiveMission } from "@/lib/db/mission";
 
 interface AIChatProps {
   integrity: number;
 }
 
 interface ExtractedActions {
-  mandates: { label: string; category: "physical" | "intellectual" | "spiritual"; rationale: string }[];
+  mandates: {
+    label: string;
+    category: "physical" | "intellectual" | "spiritual";
+    rationale: string;
+  }[];
   mission: { goal: string; timeframe: string } | null;
 }
 
@@ -23,6 +33,7 @@ interface ActionMessage {
 }
 
 export function AIChat({ integrity }: AIChatProps) {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     if (typeof window === "undefined") return [];
     const saved = sessionStorage.getItem("switch_chat_messages");
@@ -30,7 +41,9 @@ export function AIChat({ integrity }: AIChatProps) {
   });
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [actionMessages, setActionMessages] = useState<Map<string, ActionMessage>>(() => {
+  const [actionMessages, setActionMessages] = useState<
+    Map<string, ActionMessage>
+  >(() => {
     if (typeof window === "undefined") return new Map();
     const saved = sessionStorage.getItem("switch_chat_actions");
     return saved ? new Map(JSON.parse(saved)) : new Map();
@@ -52,37 +65,46 @@ export function AIChat({ integrity }: AIChatProps) {
     }
   }, []);
 
-  // Persist messages to sessionStorage
+  // Persist messages to sessionStorage (short-lived cache for UX)
   useEffect(() => {
     sessionStorage.setItem("switch_chat_messages", JSON.stringify(messages));
   }, [messages]);
 
-  // Persist action messages to sessionStorage
   useEffect(() => {
-    sessionStorage.setItem("switch_chat_actions", JSON.stringify(Array.from(actionMessages.entries())));
+    sessionStorage.setItem(
+      "switch_chat_actions",
+      JSON.stringify(Array.from(actionMessages.entries())),
+    );
   }, [actionMessages]);
 
-  // Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Extract actions from AI response
+  // Extract structured actions from AI response
   const extractActions = async (aiResponse: string, msgId: string) => {
     setExtractingActions(true);
     try {
-      const mandates = JSON.parse(localStorage.getItem("switch_mandates") || "[]");
+      // Pass current mandates from DB for deduplication context
+      const currentMandates = user ? await getMandates(user.id) : [];
       const res = await fetch("/api/chat/actions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aiResponse, currentMandates: mandates }),
+        body: JSON.stringify({ aiResponse, currentMandates }),
       });
       const actions: ExtractedActions = await res.json();
 
-      if ((actions.mandates && actions.mandates.length > 0) || actions.mission) {
-        setActionMessages(prev => {
+      if (
+        (actions.mandates && actions.mandates.length > 0) ||
+        actions.mission
+      ) {
+        setActionMessages((prev) => {
           const next = new Map(prev);
-          next.set(msgId, { id: msgId, actions, applied: { mandates: false, mission: false } });
+          next.set(msgId, {
+            id: msgId,
+            actions,
+            applied: { mandates: false, mission: false },
+          });
           return next;
         });
       }
@@ -93,49 +115,60 @@ export function AIChat({ integrity }: AIChatProps) {
     }
   };
 
-  // Apply mandate actions to localStorage
-  const applyMandates = (msgId: string) => {
+  // Apply AI-generated mandates → Supabase
+  const applyMandates = async (msgId: string) => {
     const actionMsg = actionMessages.get(msgId);
-    if (!actionMsg) return;
+    if (!actionMsg || !user) return;
 
-    const existing = JSON.parse(localStorage.getItem("switch_mandates") || "[]");
-    const newTasks = actionMsg.actions.mandates.map((m, i) => ({
-      id: `ai_${Date.now()}_${i}`,
-      label: m.label,
-      completed: false,
-      category: m.category,
-      rationale: m.rationale,
-    }));
+    for (const m of actionMsg.actions.mandates) {
+      await addMandate(user.id, {
+        label: m.label,
+        category: m.category,
+        rationale: m.rationale,
+        completed: false,
+      });
+    }
+    logActivity(
+      "ai",
+      `${actionMsg.actions.mandates.length} mandates generated from Neural Link`,
+      user.id,
+    );
 
-    localStorage.setItem("switch_mandates", JSON.stringify([...existing, ...newTasks]));
-    logActivity("ai", `${newTasks.length} mandates generated from Neural Link`);
-
-    setActionMessages(prev => {
+    setActionMessages((prev) => {
       const next = new Map(prev);
       const existing = next.get(msgId);
-      if (existing) next.set(msgId, { ...existing, applied: { ...existing.applied, mandates: true } });
+      if (existing)
+        next.set(msgId, {
+          ...existing,
+          applied: { ...existing.applied, mandates: true },
+        });
       return next;
     });
   };
 
-  // Apply mission update to localStorage
-  const applyMission = (msgId: string) => {
+  // Apply AI-suggested mission update → Supabase
+  const applyMission = async (msgId: string) => {
     const actionMsg = actionMessages.get(msgId);
-    if (!actionMsg || !actionMsg.actions.mission) return;
+    if (!actionMsg || !actionMsg.actions.mission || !user) return;
 
-    const existing = JSON.parse(localStorage.getItem("switch_mission") || "{}");
-    const updated = {
-      ...existing,
+    await upsertActiveMission(user.id, {
       goal: actionMsg.actions.mission.goal,
       timeframe: actionMsg.actions.mission.timeframe,
-    };
-    localStorage.setItem("switch_mission", JSON.stringify(updated));
-    logActivity("mission", `Objective updated: "${actionMsg.actions.mission.goal}"`);
+    });
+    logActivity(
+      "mission",
+      `Objective updated: "${actionMsg.actions.mission.goal}"`,
+      user.id,
+    );
 
-    setActionMessages(prev => {
+    setActionMessages((prev) => {
       const next = new Map(prev);
       const existing = next.get(msgId);
-      if (existing) next.set(msgId, { ...existing, applied: { ...existing.applied, mission: true } });
+      if (existing)
+        next.set(msgId, {
+          ...existing,
+          applied: { ...existing.applied, mission: true },
+        });
       return next;
     });
   };
@@ -154,10 +187,12 @@ export function AIChat({ integrity }: AIChatProps) {
     setInput("");
     setIsLoading(true);
 
-    // Gather context from localStorage
-    const mandates = JSON.parse(localStorage.getItem("switch_mandates") || "[]");
-    const journal = JSON.parse(localStorage.getItem("switch_journal") || "[]");
-    const mission = JSON.parse(localStorage.getItem("switch_mission") || "null");
+    // Gather context from Supabase for the AI prompt
+    const [mandates, journalEntries, activeMission] = await Promise.all([
+      user ? getMandates(user.id) : [],
+      user ? getJournalEntries(user.id) : [],
+      user ? getActiveMission(user.id) : null,
+    ]);
 
     try {
       const response = await fetch("/api/chat", {
@@ -169,27 +204,21 @@ export function AIChat({ integrity }: AIChatProps) {
           integrity,
           context: {
             mandates,
-            journal: journal.slice(0, 5),
-            mission,
+            journal: journalEntries,
+            mission: activeMission,
           },
         }),
       });
 
       if (!response.ok) throw new Error("Network error");
 
-      // Handle streaming response
       const reader = response.body?.getReader();
       if (!reader) return;
 
       const aiMsgId = Date.now().toString() + "ai";
       setMessages((prev) => [
         ...prev,
-        {
-          id: aiMsgId,
-          sender: "ai",
-          text: "",
-          timestamp: Date.now(),
-        },
+        { id: aiMsgId, sender: "ai", text: "", timestamp: Date.now() },
       ]);
 
       const decoder = new TextDecoder();
@@ -201,7 +230,6 @@ export function AIChat({ integrity }: AIChatProps) {
         done = doneReading;
         const chunkValue = decoder.decode(value);
         accumulatedText += chunkValue;
-
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === aiMsgId ? { ...msg, text: accumulatedText } : msg,
@@ -209,7 +237,6 @@ export function AIChat({ integrity }: AIChatProps) {
         );
       }
 
-      // After streaming completes, extract actions
       if (accumulatedText.length > 50) {
         extractActions(accumulatedText, aiMsgId);
       }
@@ -251,10 +278,11 @@ export function AIChat({ integrity }: AIChatProps) {
               className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}
             >
               <div
-                className={`max-w-[90%] p-4 ${msg.sender === "user"
-                  ? "border border-white/15 bg-white/[0.03] text-white"
-                  : "border-l-2 border-accent/70 bg-accent/[0.03] text-white pl-4"
-                  }`}
+                className={`max-w-[90%] p-4 ${
+                  msg.sender === "user"
+                    ? "border border-white/15 bg-white/[0.03] text-white"
+                    : "border-l-2 border-accent/70 bg-accent/[0.03] text-white pl-4"
+                }`}
               >
                 {msg.sender === "ai" && (
                   <span className="block text-[9px] text-accent/50 mb-2 font-bold tracking-widest uppercase">
@@ -262,7 +290,8 @@ export function AIChat({ integrity }: AIChatProps) {
                   </span>
                 )}
                 {msg.sender === "ai" ? (
-                  <div className="leading-relaxed text-xs md:text-sm prose prose-invert prose-sm max-w-none
+                  <div
+                    className="leading-relaxed text-xs md:text-sm prose prose-invert prose-sm max-w-none
                     prose-p:my-1.5 prose-p:text-white/90
                     prose-strong:text-accent prose-strong:font-bold
                     prose-headings:text-accent prose-headings:font-display prose-headings:text-sm prose-headings:mt-3 prose-headings:mb-1
@@ -271,7 +300,8 @@ export function AIChat({ integrity }: AIChatProps) {
                     prose-code:text-accent prose-code:bg-accent/10 prose-code:px-1 prose-code:py-0.5 prose-code:text-xs prose-code:rounded prose-code:font-mono
                     prose-pre:bg-[#0a0a0a] prose-pre:border prose-pre:border-white/10 prose-pre:p-3 prose-pre:my-2
                     prose-a:text-accent prose-a:no-underline hover:prose-a:underline
-                  ">
+                  "
+                  >
                     <ReactMarkdown>{msg.text}</ReactMarkdown>
                   </div>
                 ) : (
@@ -281,88 +311,109 @@ export function AIChat({ integrity }: AIChatProps) {
                 )}
               </div>
 
-              {/* Action Cards - shown below AI messages */}
-              {msg.sender === "ai" && actionMessages.has(msg.id) && (() => {
-                const am = actionMessages.get(msg.id)!;
-                return (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="max-w-[90%] mt-2 space-y-2"
-                  >
-                    {/* Mandate Actions */}
-                    {am.actions.mandates.length > 0 && (
-                      <div className="border border-accent/20 bg-accent/[0.03] p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[9px] text-accent/70 font-bold tracking-widest uppercase flex items-center gap-1.5">
-                            <Plus className="w-3 h-3" />
-                            GENERATED MANDATES ({am.actions.mandates.length})
-                          </span>
-                          {!am.applied.mandates ? (
-                            <button
-                              onClick={() => applyMandates(msg.id)}
-                              className="text-[9px] font-bold tracking-wider uppercase bg-accent text-black px-2 py-1 hover:bg-white transition-colors flex items-center gap-1"
-                            >
-                              <Plus className="w-3 h-3" /> Add All
-                            </button>
-                          ) : (
-                            <span className="text-[9px] font-bold tracking-wider uppercase text-green-400 flex items-center gap-1">
-                              <Check className="w-3 h-3" /> Added
+              {/* Action Cards */}
+              {msg.sender === "ai" &&
+                actionMessages.has(msg.id) &&
+                (() => {
+                  const am = actionMessages.get(msg.id)!;
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="max-w-[90%] mt-2 space-y-2"
+                    >
+                      {am.actions.mandates.length > 0 && (
+                        <div className="border border-accent/20 bg-accent/[0.03] p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[9px] text-accent/70 font-bold tracking-widest uppercase flex items-center gap-1.5">
+                              <Plus className="w-3 h-3" />
+                              GENERATED MANDATES ({am.actions.mandates.length})
                             </span>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          {am.actions.mandates.map((m, i) => (
-                            <div key={i} className="text-xs text-white/80 flex items-start gap-2 py-1 border-t border-white/5 first:border-0">
-                              <span className={`text-[8px] px-1 py-0.5 rounded uppercase font-bold shrink-0 mt-0.5 ${m.category === "physical" ? "bg-red-500/20 text-red-400" :
-                                m.category === "intellectual" ? "bg-blue-500/20 text-blue-400" :
-                                  "bg-purple-500/20 text-purple-400"
-                                }`}>{m.category.slice(0, 4)}</span>
-                              <div>
-                                <span className="text-white/90">{m.label}</span>
-                                {m.rationale && <span className="text-white/40 ml-1 text-[10px]">— {m.rationale}</span>}
+                            {!am.applied.mandates ? (
+                              <button
+                                onClick={() => applyMandates(msg.id)}
+                                className="text-[9px] font-bold tracking-wider uppercase bg-accent text-black px-2 py-1 hover:bg-white transition-colors flex items-center gap-1"
+                              >
+                                <Plus className="w-3 h-3" /> Add All
+                              </button>
+                            ) : (
+                              <span className="text-[9px] font-bold tracking-wider uppercase text-green-400 flex items-center gap-1">
+                                <Check className="w-3 h-3" /> Added
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            {am.actions.mandates.map((m, i) => (
+                              <div
+                                key={i}
+                                className="text-xs text-white/80 flex items-start gap-2 py-1 border-t border-white/5 first:border-0"
+                              >
+                                <span
+                                  className={`text-[8px] px-1 py-0.5 rounded uppercase font-bold shrink-0 mt-0.5 ${
+                                    m.category === "physical"
+                                      ? "bg-red-500/20 text-red-400"
+                                      : m.category === "intellectual"
+                                        ? "bg-blue-500/20 text-blue-400"
+                                        : "bg-purple-500/20 text-purple-400"
+                                  }`}
+                                >
+                                  {m.category.slice(0, 4)}
+                                </span>
+                                <div>
+                                  <span className="text-white/90">
+                                    {m.label}
+                                  </span>
+                                  {m.rationale && (
+                                    <span className="text-white/40 ml-1 text-[10px]">
+                                      — {m.rationale}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Mission Update Action */}
-                    {am.actions.mission && (
-                      <div className="border border-accent/20 bg-accent/[0.03] p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[9px] text-accent/70 font-bold tracking-widest uppercase flex items-center gap-1.5">
-                            <Target className="w-3 h-3" />
-                            MISSION UPDATE
-                          </span>
-                          {!am.applied.mission ? (
-                            <button
-                              onClick={() => applyMission(msg.id)}
-                              className="text-[9px] font-bold tracking-wider uppercase bg-accent text-black px-2 py-1 hover:bg-white transition-colors flex items-center gap-1"
-                            >
-                              <Target className="w-3 h-3" /> Apply
-                            </button>
-                          ) : (
-                            <span className="text-[9px] font-bold tracking-wider uppercase text-green-400 flex items-center gap-1">
-                              <Check className="w-3 h-3" /> Applied
+                      {am.actions.mission && (
+                        <div className="border border-accent/20 bg-accent/[0.03] p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[9px] text-accent/70 font-bold tracking-widest uppercase flex items-center gap-1.5">
+                              <Target className="w-3 h-3" />
+                              MISSION UPDATE
                             </span>
-                          )}
+                            {!am.applied.mission ? (
+                              <button
+                                onClick={() => applyMission(msg.id)}
+                                className="text-[9px] font-bold tracking-wider uppercase bg-accent text-black px-2 py-1 hover:bg-white transition-colors flex items-center gap-1"
+                              >
+                                <Target className="w-3 h-3" /> Apply
+                              </button>
+                            ) : (
+                              <span className="text-[9px] font-bold tracking-wider uppercase text-green-400 flex items-center gap-1">
+                                <Check className="w-3 h-3" /> Applied
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs space-y-1">
+                            <div className="text-white/80">
+                              <span className="text-accent/50">GOAL:</span>{" "}
+                              {am.actions.mission.goal}
+                            </div>
+                            <div className="text-white/80">
+                              <span className="text-accent/50">TIMEFRAME:</span>{" "}
+                              {am.actions.mission.timeframe}
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-xs space-y-1">
-                          <div className="text-white/80"><span className="text-accent/50">GOAL:</span> {am.actions.mission.goal}</div>
-                          <div className="text-white/80"><span className="text-accent/50">TIMEFRAME:</span> {am.actions.mission.timeframe}</div>
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
-                );
-              })()}
+                      )}
+                    </motion.div>
+                  );
+                })()}
             </motion.div>
           ))}
         </AnimatePresence>
 
-        {/* Action extraction indicator */}
         {extractingActions && (
           <motion.div
             initial={{ opacity: 0 }}

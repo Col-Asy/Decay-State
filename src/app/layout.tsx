@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Roboto_Mono, Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { AuthProvider } from "@/context/AuthContext";
 
 const robotoMono = Roboto_Mono({
   variable: "--font-mono",
@@ -21,7 +22,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Switch Protocol",
+  title: "DecayState",
   description: "Manifest your future or watch it fade.",
 };
 
@@ -38,8 +39,10 @@ export default function RootLayout({
       <body
         className={`${robotoMono.variable} antialiased bg-black text-white min-h-screen`}
       >
-        {children}
-        <GlobalSearch />
+        <AuthProvider>
+          {children}
+          <GlobalSearch />
+        </AuthProvider>
       </body>
     </html>
   );

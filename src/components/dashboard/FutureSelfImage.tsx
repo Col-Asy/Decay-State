@@ -1,11 +1,12 @@
 "use client";
 
+import { Target } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 
 interface FutureSelfImageProps {
   integrity: number;
-  imageUrl: string;
+  imageUrl: string | null;
 }
 
 export function FutureSelfImage({ integrity, imageUrl }: FutureSelfImageProps) {
@@ -22,17 +23,37 @@ export function FutureSelfImage({ integrity, imageUrl }: FutureSelfImageProps) {
       <motion.div
         className="w-full h-full"
         animate={{
-          filter: `blur(${blurAmount}px) grayscale(${grayscaleAmount}%) brightness(${brightnessAmount}%)`,
+          filter: imageUrl
+            ? `blur(${blurAmount}px) grayscale(${grayscaleAmount}%) brightness(${brightnessAmount}%)`
+            : "none",
         }}
         transition={{ duration: 0.8, ease: "easeInOut" }}
       >
-        <Image
-          src={imageUrl}
-          alt="Future Self"
-          fill
-          className="object-cover"
-          priority
-        />
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt="Future Self"
+            fill
+            className="object-cover"
+            priority
+          />
+        ) : (
+          <div className="w-full h-full bg-accent/5 border border-accent/20 flex flex-col items-center justify-center p-8 relative">
+            <div className="absolute top-0 left-0 w-1 h-full bg-accent" />
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="flex items-center gap-2 text-[10px] text-accent uppercase tracking-widest font-bold">
+                <Target className="w-4 h-4" />
+                Visual Feed
+              </div>
+              <div className="text-4xl font-display font-black text-white uppercase tracking-tight leading-tight opacity-50">
+                NO IMAGE
+              </div>
+              <div className="text-[10px] text-zinc-600 uppercase tracking-widest font-mono">
+                ↳ Awaiting Initial Upload
+              </div>
+            </div>
+          </div>
+        )}
       </motion.div>
 
       {/* Glitch Overlay logic could go here later */}
