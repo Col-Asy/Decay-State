@@ -3,31 +3,24 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChatMessage } from "@/types";
-import { Send, Plus, Target, Check, Loader2 } from "lucide-react";
+import { Send, Plus, Target, Check, Loader2, BrainCircuit } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { logActivity } from "@/lib/activityLog";
 import { useAuth } from "@/context/AuthContext";
 import { addMandate } from "@/lib/db/mandates";
 import { upsertActiveMission } from "@/lib/db/mission";
 import { getMandates } from "@/lib/db/mandates";
-import { getJournalEntries } from "@/lib/db/journal";
-import { getActiveMission } from "@/lib/db/mission";
 
 interface AIChatProps {
   integrity: number;
 }
 
 interface ExtractedActions {
-  mandates: {
-    label: string;
-    category: "physical" | "intellectual" | "spiritual";
-    rationale: string;
-  }[];
-  mission: { goal: string; timeframe: string } | null;
+  mandates: { label: string; category: string; rationale?: string }[];
+  mission?: { goal: string; timeframe: string } | null;
 }
 
 interface ActionMessage {
-  id: string;
   actions: ExtractedActions;
   applied: { mandates: boolean; mission: boolean };
 }
@@ -41,6 +34,7 @@ export function AIChat({ integrity }: AIChatProps) {
   });
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [extractingActions, setExtractingActions] = useState(false);
   const [actionMessages, setActionMessages] = useState<
     Map<string, ActionMessage>
   >(() => {
@@ -48,24 +42,23 @@ export function AIChat({ integrity }: AIChatProps) {
     const saved = sessionStorage.getItem("switch_chat_actions");
     return saved ? new Map(JSON.parse(saved)) : new Map();
   });
-  const [extractingActions, setExtractingActions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Initial greeting only if no saved messages
+  // Initial greeting
   useEffect(() => {
     if (messages.length === 0) {
       setMessages([
         {
           id: "init",
           sender: "ai",
-          text: "Protocol initialized. Awaiting action verification.",
+          text: "Protocol initialized. Neural Link active. I can help you manage your mandates, break down tasks, update your mission, and track your progress. What do you need?",
           timestamp: Date.now(),
         },
       ]);
     }
   }, []);
 
-  // Persist messages to sessionStorage (short-lived cache for UX)
+  // Persist messages and actions
   useEffect(() => {
     sessionStorage.setItem("switch_chat_messages", JSON.stringify(messages));
   }, [messages]);
@@ -79,13 +72,12 @@ export function AIChat({ integrity }: AIChatProps) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, actionMessages]);
 
-  // Extract structured actions from AI response
+  // Extract actions from AI response (old flow)
   const extractActions = async (aiResponse: string, msgId: string) => {
     setExtractingActions(true);
     try {
-      // Pass current mandates from DB for deduplication context
       const currentMandates = user ? await getMandates(user.id) : [];
       const res = await fetch("/api/chat/actions", {
         method: "POST",
@@ -93,15 +85,10 @@ export function AIChat({ integrity }: AIChatProps) {
         body: JSON.stringify({ aiResponse, currentMandates }),
       });
       const actions: ExtractedActions = await res.json();
-
-      if (
-        (actions.mandates && actions.mandates.length > 0) ||
-        actions.mission
-      ) {
+      if (actions.mandates.length > 0 || actions.mission) {
         setActionMessages((prev) => {
           const next = new Map(prev);
           next.set(msgId, {
-            id: msgId,
             actions,
             applied: { mandates: false, mission: false },
           });
@@ -115,60 +102,74 @@ export function AIChat({ integrity }: AIChatProps) {
     }
   };
 
-  // Apply AI-generated mandates → Supabase
-  const applyMandates = async (msgId: string) => {
-    const actionMsg = actionMessages.get(msgId);
-    if (!actionMsg || !user) return;
+  // Normalize category to match DB constraint (physical | intellectual | spiritual)
+  const normalizeCategory = (
+    cat: string,
+  ): "physical" | "intellectual" | "spiritual" => {
+    const c = cat.toLowerCase().trim();
+    if (c.startsWith("phys")) return "physical";
+    if (
+      c.startsWith("int") ||
+      c.startsWith("ment") ||
+      c.startsWith("acad") ||
+      c.startsWith("stud")
+    )
+      return "intellectual";
+    if (c.startsWith("spir") || c.startsWith("mind") || c.startsWith("med"))
+      return "spiritual";
+    return "intellectual"; // safe default
+  };
 
-    for (const m of actionMsg.actions.mandates) {
+  // Apply mandates (old flow — user confirms)
+  const applyMandates = async (msgId: string) => {
+    const am = actionMessages.get(msgId);
+    if (!am || !user) return;
+
+    for (const m of am.actions.mandates) {
       await addMandate(user.id, {
         label: m.label,
-        category: m.category,
+        category: normalizeCategory(m.category),
         rationale: m.rationale,
         completed: false,
       });
     }
     logActivity(
       "ai",
-      `${actionMsg.actions.mandates.length} mandates generated from Neural Link`,
+      `${am.actions.mandates.length} mandates added via Neural Link`,
       user.id,
     );
 
     setActionMessages((prev) => {
       const next = new Map(prev);
-      const existing = next.get(msgId);
-      if (existing)
-        next.set(msgId, {
-          ...existing,
-          applied: { ...existing.applied, mandates: true },
-        });
+      next.set(msgId, {
+        ...am,
+        applied: { ...am.applied, mandates: true },
+      });
       return next;
     });
   };
 
-  // Apply AI-suggested mission update → Supabase
+  // Apply mission update (old flow — user confirms)
   const applyMission = async (msgId: string) => {
-    const actionMsg = actionMessages.get(msgId);
-    if (!actionMsg || !actionMsg.actions.mission || !user) return;
+    const am = actionMessages.get(msgId);
+    if (!am?.actions.mission || !user) return;
 
     await upsertActiveMission(user.id, {
-      goal: actionMsg.actions.mission.goal,
-      timeframe: actionMsg.actions.mission.timeframe,
+      goal: am.actions.mission.goal,
+      timeframe: am.actions.mission.timeframe,
     });
     logActivity(
       "mission",
-      `Objective updated: "${actionMsg.actions.mission.goal}"`,
+      `Mission updated via Neural Link: "${am.actions.mission.goal}"`,
       user.id,
     );
 
     setActionMessages((prev) => {
       const next = new Map(prev);
-      const existing = next.get(msgId);
-      if (existing)
-        next.set(msgId, {
-          ...existing,
-          applied: { ...existing.applied, mission: true },
-        });
+      next.set(msgId, {
+        ...am,
+        applied: { ...am.applied, mission: true },
+      });
       return next;
     });
   };
@@ -187,13 +188,6 @@ export function AIChat({ integrity }: AIChatProps) {
     setInput("");
     setIsLoading(true);
 
-    // Gather context from Supabase for the AI prompt
-    const [mandates, journalEntries, activeMission] = await Promise.all([
-      user ? getMandates(user.id) : [],
-      user ? getJournalEntries(user.id) : [],
-      user ? getActiveMission(user.id) : null,
-    ]);
-
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -202,11 +196,7 @@ export function AIChat({ integrity }: AIChatProps) {
           message: input,
           history: messages,
           integrity,
-          context: {
-            mandates,
-            journal: journalEntries,
-            mission: activeMission,
-          },
+          userId: user?.id,
         }),
       });
 
@@ -228,15 +218,38 @@ export function AIChat({ integrity }: AIChatProps) {
       while (!done) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
-        const chunkValue = decoder.decode(value);
-        accumulatedText += chunkValue;
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === aiMsgId ? { ...msg, text: accumulatedText } : msg,
-          ),
-        );
+        const chunk = decoder.decode(value);
+
+        const lines = chunk.split("\n");
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6);
+
+          try {
+            const event = JSON.parse(data);
+
+            if (event.type === "text") {
+              accumulatedText += event.content;
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === aiMsgId ? { ...msg, text: accumulatedText } : msg,
+                ),
+              );
+            } else if (event.type === "error") {
+              accumulatedText += "\n\n⚠️ " + event.content;
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === aiMsgId ? { ...msg, text: accumulatedText } : msg,
+                ),
+              );
+            }
+          } catch {
+            // Skip malformed events
+          }
+        }
       }
 
+      // After streaming, extract actions from the AI response (old flow)
       if (accumulatedText.length > 50) {
         extractActions(accumulatedText, aiMsgId);
       }
@@ -260,7 +273,10 @@ export function AIChat({ integrity }: AIChatProps) {
     <div className="flex flex-col h-full cyber-border bg-black/50 p-6 font-mono text-sm shadow-[0_0_50px_-20px_rgba(255,255,255,0.1)]">
       {/* Terminal Header */}
       <div className="flex justify-between items-center pb-4 border-b border-white/10 mb-4 opacity-50 text-[10px] tracking-widest uppercase">
-        <span>ENCRYPTED_CONNECTION :: SECURE</span>
+        <span className="flex items-center gap-2">
+          <BrainCircuit className="w-3 h-3" />
+          NEURAL_LINK :: AGENT_MODE
+        </span>
         <div className="flex gap-2">
           <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
           <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse delay-75" />
@@ -311,7 +327,7 @@ export function AIChat({ integrity }: AIChatProps) {
                 )}
               </div>
 
-              {/* Action Cards */}
+              {/* Action Cards — same as original */}
               {msg.sender === "ai" &&
                 actionMessages.has(msg.id) &&
                 (() => {
@@ -413,6 +429,17 @@ export function AIChat({ integrity }: AIChatProps) {
             </motion.div>
           ))}
         </AnimatePresence>
+
+        {isLoading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center gap-2 text-[10px] text-accent/50 uppercase tracking-widest pl-4"
+          >
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Agent processing...
+          </motion.div>
+        )}
 
         {extractingActions && (
           <motion.div
