@@ -67,6 +67,11 @@ export function Mandates() {
       }
     }
     load();
+
+    // Re-fetch when Neural Link AI modifies data
+    const handleDataChange = () => { load(); };
+    window.addEventListener("neural-link-data-change", handleDataChange);
+    return () => window.removeEventListener("neural-link-data-change", handleDataChange);
   }, [user]);
 
   const deleteTask = async (id: string) => {

@@ -25,7 +25,7 @@ export function createNeuralLinkAgent(
 
   const model = new ChatGroq({
     apiKey: process.env.GROQ_API_KEY,
-    model: process.env.GROQ_MODEL_ID || "llama-3.1-8b-instant",
+    model: process.env.GROQ_MODEL_ID || "llama-3.3-70b-versatile",
     temperature: 0.7,
     maxTokens: 2048,
   }).bindTools(tools);
@@ -33,9 +33,26 @@ export function createNeuralLinkAgent(
   const toolNode = new ToolNode(tools);
 
   // The agent node: calls the LLM with the current messages
+  // Catches Groq 400 errors (malformed tool calls) and retries without tools
   async function agentNode(state: typeof MessagesAnnotation.State) {
-    const response = await model.invoke(state.messages);
-    return { messages: [response] };
+    try {
+      const response = await model.invoke(state.messages);
+      return { messages: [response] };
+    } catch (error: any) {
+      // If Groq rejects a tool call (400), fall back to a plain text response
+      if (error?.status === 400 || error?.message?.includes("400")) {
+        console.warn("Agent tool call failed, retrying without tools:", error.message);
+        const plainModel = new ChatGroq({
+          apiKey: process.env.GROQ_API_KEY,
+          model: process.env.GROQ_MODEL_ID || "llama-3.3-70b-versatile",
+          temperature: 0.7,
+          maxTokens: 2048,
+        });
+        const response = await plainModel.invoke(state.messages);
+        return { messages: [response] };
+      }
+      throw error;
+    }
   }
 
   // Conditional edge: should we continue to tools or end?

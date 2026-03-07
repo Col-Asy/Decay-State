@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Task } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { FutureSelfImage } from "@/components/dashboard/FutureSelfImage";
-import { LogOut, ShieldAlert, ListTodo, BookOpen } from "lucide-react";
+import { LogOut, ShieldAlert, ListTodo, BookOpen, RefreshCw } from "lucide-react";
 import { logActivity } from "@/lib/activityLog";
 import { MissionSelector } from "@/components/dashboard/MissionSelector";
 import { LiveSystemLog } from "@/components/dashboard/LiveSystemLog";
@@ -17,6 +17,7 @@ import { getActiveMission } from "@/lib/db/mission";
 import { getSubscription } from "@/lib/db/subscriptions";
 import type { Mission } from "@/lib/db/mission";
 import type { Subscription } from "@/lib/db/subscriptions";
+import { FutureSelfGallery } from "@/components/dashboard/FutureSelfGallery";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -77,6 +79,12 @@ export default function Dashboard() {
     if (mission) {
       setMission({ ...mission, goal, timeframe });
     }
+  };
+
+  const refreshMission = async () => {
+    if (!user) return;
+    const activeMission = await getActiveMission(user.id);
+    setMission(activeMission);
   };
 
   const handleCardNavigation = (route: string) => {
@@ -212,9 +220,20 @@ export default function Dashboard() {
             <div className="absolute inset-0 flex items-center justify-center p-12 z-10">
               <FutureSelfImage
                 integrity={displayIntegrity}
-                imageUrl={avatarUrl}
+                imageUrl={mission?.image_url ?? avatarUrl}
               />
             </div>
+
+            {/* Projections Gallery Button */}
+            {mission?.id && (
+              <button
+                onClick={() => setGalleryOpen(true)}
+                className="absolute top-14 left-4 z-30 text-[9px] text-zinc-500 hover:text-accent font-mono tracking-widest uppercase border border-white/10 hover:border-accent/30 px-2 py-1 bg-black/50 backdrop-blur-sm transition-all flex items-center gap-1"
+              >
+                <RefreshCw className="w-3 h-3" />
+                Projections
+              </button>
+            )}
 
             {/* Integrity Bar */}
             <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/80 to-transparent z-30 flex flex-col gap-4 border-t border-white/5">
@@ -356,6 +375,19 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Projections Gallery Modal */}
+      {mission?.id && (
+        <FutureSelfGallery
+          missionId={mission.id}
+          isOpen={galleryOpen}
+          onClose={() => setGalleryOpen(false)}
+          onImageChange={() => {
+            setGalleryOpen(false);
+            refreshMission();
+          }}
+        />
+      )}
     </div>
   );
 }

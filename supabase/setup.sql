@@ -358,6 +358,7 @@ create policy "journal-images: delete own"
 -- =============================================================
 -- DONE
 -- Tables:  profiles, missions, mandates, journal_entries,
---          conversations, ai_chats, activity_log, subscriptions
--- Buckets: avatars, mission-images, journal-images
+--          conversations, ai_chats, activity_log, subscriptions,
+--          future_self_images
+-- Buckets: avatars, mission-images, journal-images, future-self-images
 -- =============================================================

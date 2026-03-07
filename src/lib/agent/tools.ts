@@ -87,7 +87,9 @@ export function createAgentTools(
       name: "get_user_context",
       description:
         "Fetches the user's current mission, all mandates (tasks), recent journal entries, and integrity score. Use this when the user asks about their progress or status.",
-      schema: z.object({}),
+      schema: z.object({
+        reason: z.string().describe("Brief reason for fetching context"),
+      }),
     },
   );
 
@@ -184,7 +186,6 @@ export function createAgentTools(
             .update({
               goal: input.goal,
               timeframe: input.timeframe,
-              manifesto: input.manifesto || null,
             })
             .eq("id", existing.id);
 
@@ -195,7 +196,6 @@ export function createAgentTools(
             user_id: userId,
             goal: input.goal,
             timeframe: input.timeframe,
-            manifesto: input.manifesto || null,
             is_active: true,
           });
 
@@ -224,10 +224,6 @@ export function createAgentTools(
         timeframe: z
           .string()
           .describe("How long to achieve the goal, e.g. '30 Days'"),
-        manifesto: z
-          .string()
-          .optional()
-          .describe("Detailed plan for achieving the goal"),
       }),
     },
   );
@@ -258,11 +254,11 @@ export function createAgentTools(
         return data
           .map(
             (t: any) =>
-              `${t.completed ? "[x]" : "[ ]"} ${t.label} (${t.category})${t.rationale ? ` — ${t.rationale}` : ""}`,
+              `[ID: ${t.id}] ${t.completed ? "[x]" : "[ ]"} ${t.label} (${t.category})${t.rationale ? ` — ${t.rationale}` : ""}`,
           )
           .join("\n");
       } catch (error) {
-        return `Error fetching tasks: ${error}`;
+          return `Error fetching tasks: ${error}`;
       }
     },
     {
@@ -272,8 +268,7 @@ export function createAgentTools(
       schema: z.object({
         filter: z
           .enum(["pending", "completed", "all"])
-          .default("pending")
-          .describe("Filter mandates by status"),
+          .describe("Filter mandates: 'pending', 'completed', or 'all'"),
       }),
     },
   );
@@ -294,6 +289,219 @@ export function createAgentTools(
         task_description: z
           .string()
           .describe("The task or goal to break down"),
+      }),
+    },
+  );
+
+  const toggleMandate = tool(
+    async (input) => {
+      try {
+        // Find the mandate first
+        const { data: mandate, error: fetchError } = await supabase
+          .from("mandates")
+          .select("*")
+          .eq("id", input.mandate_id)
+          .eq("user_id", userId)
+          .single();
+
+        if (fetchError || !mandate) {
+          return JSON.stringify({
+            success: false,
+            error: "Mandate not found. Use get_upcoming_tasks to see valid mandate IDs.",
+          });
+        }
+
+        const newStatus = !mandate.completed;
+        const { error } = await supabase
+          .from("mandates")
+          .update({
+            completed: newStatus,
+            completed_at: newStatus ? new Date().toISOString() : null,
+          })
+          .eq("id", input.mandate_id);
+
+        if (error) {
+          return JSON.stringify({ success: false, error: error.message });
+        }
+
+        return JSON.stringify({
+          success: true,
+          message: `Mandate "${mandate.label}" marked as ${newStatus ? "completed" : "pending"}`,
+          mandate: { id: mandate.id, label: mandate.label, completed: newStatus },
+        });
+      } catch (error) {
+        return JSON.stringify({ success: false, error: `Failed to toggle mandate: ${error}` });
+      }
+    },
+    {
+      name: "toggle_mandate",
+      description:
+        "Marks a mandate as completed or uncompleted. Use when the user says they finished a task, completed something, or wants to undo a completion. You MUST call get_upcoming_tasks first to get the mandate ID.",
+      schema: z.object({
+        mandate_id: z
+          .string()
+          .describe("The UUID of the mandate to toggle"),
+      }),
+    },
+  );
+
+  const deleteMandate = tool(
+    async (input) => {
+      try {
+        // Verify it belongs to user
+        const { data: mandate, error: fetchError } = await supabase
+          .from("mandates")
+          .select("id, label")
+          .eq("id", input.mandate_id)
+          .eq("user_id", userId)
+          .single();
+
+        if (fetchError || !mandate) {
+          return JSON.stringify({
+            success: false,
+            error: "Mandate not found. Use get_upcoming_tasks to see valid mandate IDs.",
+          });
+        }
+
+        const { error } = await supabase
+          .from("mandates")
+          .delete()
+          .eq("id", input.mandate_id);
+
+        if (error) {
+          return JSON.stringify({ success: false, error: error.message });
+        }
+
+        return JSON.stringify({
+          success: true,
+          message: `Mandate "${mandate.label}" has been deleted`,
+        });
+      } catch (error) {
+        return JSON.stringify({ success: false, error: `Failed to delete mandate: ${error}` });
+      }
+    },
+    {
+      name: "delete_mandate",
+      description:
+        "Permanently deletes a mandate. Use when the user explicitly asks to remove or delete a task. You MUST call get_upcoming_tasks first to get the mandate ID.",
+      schema: z.object({
+        mandate_id: z
+          .string()
+          .describe("The UUID of the mandate to delete"),
+      }),
+    },
+  );
+
+  const editMandate = tool(
+    async (input) => {
+      try {
+        const { data: mandate, error: fetchError } = await supabase
+          .from("mandates")
+          .select("*")
+          .eq("id", input.mandate_id)
+          .eq("user_id", userId)
+          .single();
+
+        if (fetchError || !mandate) {
+          return JSON.stringify({
+            success: false,
+            error: "Mandate not found. Use get_upcoming_tasks to see valid mandate IDs.",
+          });
+        }
+
+        const patch: Record<string, any> = {};
+        if (input.label) patch.label = input.label;
+
+        const { error } = await supabase
+          .from("mandates")
+          .update(patch)
+          .eq("id", input.mandate_id);
+
+        if (error) {
+          return JSON.stringify({ success: false, error: error.message });
+        }
+
+        return JSON.stringify({
+          success: true,
+          message: `Mandate updated: "${input.label || mandate.label}"`,
+          mandate: {
+            id: mandate.id,
+            label: input.label || mandate.label,
+            category: mandate.category,
+          },
+        });
+      } catch (error) {
+        return JSON.stringify({ success: false, error: `Failed to update mandate: ${error}` });
+      }
+    },
+    {
+      name: "edit_mandate",
+      description:
+        "Updates an existing mandate's label. Use when the user wants to rename or change a task. You MUST call get_upcoming_tasks first to get the mandate ID.",
+      schema: z.object({
+        mandate_id: z
+          .string()
+          .describe("The UUID of the mandate to update"),
+        label: z
+          .string()
+          .describe("New label for the mandate"),
+      }),
+    },
+  );
+
+  const createJournalEntry = tool(
+    async (input) => {
+      try {
+        // Get active mission to link
+        const { data: mission } = await supabase
+          .from("missions")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        const { data, error } = await supabase
+          .from("journal_entries")
+          .insert({
+            user_id: userId,
+            mission_id: mission?.id ?? null,
+            mandate_id: null,
+            date: new Date().toISOString().split("T")[0],
+            wins: input.wins || null,
+            failures: input.failures || null,
+            adjustments: input.adjustments || null,
+            image_url: null,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          return JSON.stringify({ success: false, error: error.message });
+        }
+
+        return JSON.stringify({
+          success: true,
+          message: `Journal entry created for ${data.date}`,
+          entry: { id: data.id, date: data.date },
+        });
+      } catch (error) {
+        return JSON.stringify({ success: false, error: `Failed to create journal entry: ${error}` });
+      }
+    },
+    {
+      name: "create_journal_entry",
+      description:
+        "Creates a journal entry recording the user's wins, failures, and adjustments. Use when the user wants to log their day or reflect on progress.",
+      schema: z.object({
+        wins: z
+          .string()
+          .describe("What went well — wins, achievements, progress. Use 'none' if not provided."),
+        failures: z
+          .string()
+          .describe("What went wrong — failures, setbacks. Use 'none' if not provided."),
+        adjustments: z
+          .string()
+          .describe("What to change — new strategies or plans. Use 'none' if not provided."),
       }),
     },
   );
@@ -351,9 +559,13 @@ export function createAgentTools(
   return [
     getUserContext,
     createMandate,
+    toggleMandate,
+    deleteMandate,
+    editMandate,
     updateMission,
     getUpcomingTasks,
     breakDownTask,
+    createJournalEntry,
     searchJournal,
   ];
 }

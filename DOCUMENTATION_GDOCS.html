@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>DecayState — Project Documentation</title>
+<style>
+body{font-family:'Google Sans',Arial,sans-serif;max-width:850px;margin:40px auto;padding:20px;color:#1a1a1a;line-height:1.7}
+h1{font-size:28pt;border-bottom:3px solid #1a73e8;padding-bottom:10px;margin-top:50px;color:#1a73e8}
+h2{font-size:20pt;color:#1a73e8;margin-top:40px;border-bottom:1px solid #dadce0;padding-bottom:6px}
+h3{font-size:14pt;color:#202124;margin-top:25px}
+h4{font-size:12pt;color:#5f6368;margin-top:20px}
+table{border-collapse:collapse;width:100%;margin:15px 0;font-size:10pt}
+th{background:#1a73e8;color:#fff;padding:10px 14px;text-align:left;font-weight:600}
+td{border:1px solid #dadce0;padding:8px 14px;vertical-align:top}
+tr:nth-child(even){background:#f8f9fa}
+code{background:#f1f3f4;padding:2px 6px;border-radius:4px;font-family:'Roboto Mono',monospace;font-size:9pt;color:#d93025}
+pre{background:#1e1e1e;color:#d4d4d4;padding:16px;border-radius:8px;overflow-x:auto;font-size:9pt;line-height:1.5}
+blockquote{border-left:4px solid #1a73e8;margin:20px 0;padding:12px 20px;background:#e8f0fe;color:#174ea6;font-style:italic}
+.tag{display:inline-block;background:#e8f0fe;color:#1a73e8;padding:2px 8px;border-radius:12px;font-size:9pt;font-weight:600;margin:2px}
+.tag-green{background:#e6f4ea;color:#137333}
+.tag-red{background:#fce8e6;color:#c5221f}
+.tag-yellow{background:#fef7e0;color:#ea8600}
+.section-num{color:#1a73e8;font-weight:700}
+.toc a{color:#1a73e8;text-decoration:none}
+.toc a:hover{text-decoration:underline}
+.note{background:#e8f0fe;border-left:4px solid #1a73e8;padding:12px 16px;margin:15px 0;border-radius:0 8px 8px 0}
+.warning{background:#fef7e0;border-left:4px solid #ea8600;padding:12px 16px;margin:15px 0;border-radius:0 8px 8px 0}
+.page-break{page-break-after:always}
+</style>
+</head>
+<body>
+
+<!-- TITLE PAGE -->
+<div style="text-align:center;padding:100px 0 60px">
+<h1 style="font-size:36pt;border:none;color:#1a73e8">DecayState</h1>
+<p style="font-size:16pt;color:#5f6368;margin-top:5px">Project Documentation</p>
+<p style="font-size:11pt;color:#80868b;margin-top:30px"><em>"Manifest your future or watch it fade."</em></p>
+<p style="font-size:10pt;color:#80868b;margin-top:40px">Last updated: March 2026</p>
+</div>
+
+<div class="page-break"></div>
+
+<!-- TABLE OF CONTENTS -->
+<h1>Table of Contents</h1>
+<div class="toc">
+<table>
+<tr><th>#</th><th>Section</th><th>Purpose</th></tr>
+<tr><td>1</td><td><a href="#s1">Product Overview</a></td><td>What DecayState is, the problem it solves, and its core philosophy</td></tr>
+<tr><td>2</td><td><a href="#s2">Users &amp; User Journey</a></td><td>Target users, use cases, and the full user flow</td></tr>
+<tr><td>3</td><td><a href="#s3">System Architecture</a></td><td>High-level architecture, system components, and request flow</td></tr>
+<tr><td>4</td><td><a href="#s4">Technology Stack</a></td><td>Frameworks, libraries, AI tools, and infrastructure</td></tr>
+<tr><td>5</td><td><a href="#s5">Core Features</a></td><td>Missions, Mandates, Journal, AI Neural Link, and Subscriptions</td></tr>
+<tr><td>6</td><td><a href="#s6">AI System Deep Dive</a></td><td>LangGraph agent, tools, prompts, and streaming pipeline</td></tr>
+<tr><td>7</td><td><a href="#s7">Database Schema</a></td><td>Entities, relationships, RLS policies, and triggers</td></tr>
+<tr><td>8</td><td><a href="#s8">API Reference</a></td><td>All backend API routes and their contracts</td></tr>
+<tr><td>9</td><td><a href="#s9">Frontend Architecture</a></td><td>Pages, components, routing, state management, and theming</td></tr>
+<tr><td>10</td><td><a href="#s10">Authentication &amp; Security</a></td><td>Auth flow, session management, middleware, and RLS</td></tr>
+<tr><td>11</td><td><a href="#s11">Payments &amp; Subscriptions</a></td><td>Dodo Payments integration, webhooks, and feature gating</td></tr>
+<tr><td>12</td><td><a href="#s12">Getting Started</a></td><td>Environment setup, configuration, and running locally</td></tr>
+<tr><td>13</td><td><a href="#s13">Development Workflow</a></td><td>Project structure, conventions, and contribution guidelines</td></tr>
+<tr><td>14</td><td><a href="#s14">Known Limitations &amp; Future Roadmap</a></td><td>Current constraints and planned improvements</td></tr>
+</table>
+</div>
+
+<div class="page-break"></div>
+
+<!-- SECTION 1 -->
+<h1 id="s1"><span class="section-num">1.</span> Product Overview</h1>
+
+<h2>1.1 What is DecayState?</h2>
+<p>DecayState is a <strong>gamified personal accountability web application</strong> that uses an AI mentor (the "Switch Protocol") to help users define goals, execute daily tasks ("mandates"), and track their progress through a journal system — all wrapped in a cyberpunk/military HUD-inspired interface.</p>
+<p>The central metaphor is <strong>"decay"</strong>: if you don't act on your goals, your Integrity Score drops and your future self "decays." The visual feedback loop — showing a decay probability in real-time — creates urgency and gamification around daily accountability.</p>
+
+<h2>1.2 Problem Statement</h2>
+<p>Most productivity tools are either:</p>
+<ul>
+<li><strong>Too passive</strong> — plain to-do lists with no consequence for inaction</li>
+<li><strong>Too generic</strong> — no personalization, no AI-driven insights</li>
+<li><strong>Not sticky</strong> — no gamification, no emotional engagement</li>
+</ul>
+<p>DecayState addresses this with: (1) visualizing consequences via integrity scores, (2) an AI-powered mentor that modifies your data, (3) structured daily reflection via journals, and (4) a cyberpunk HUD aesthetic that makes productivity feel like a mission.</p>
+
+<h2>1.3 Core Philosophy</h2>
+<table>
+<tr><th>Principle</th><th>Description</th></tr>
+<tr><td>Accountability over comfort</td><td>The AI gives honest feedback based on actual user data</td></tr>
+<tr><td>Action over planning</td><td>The mandate system forces daily execution, not just goal-setting</td></tr>
+<tr><td>AI as a tool, not a crutch</td><td>AI modifies data only when the user explicitly requests it</td></tr>
+<tr><td>Privacy-first</td><td>All data scoped to user via Supabase Row Level Security</td></tr>
+<tr><td>Progressive access</td><td>Free tier (Observer) gets core features; paid (Operator) unlocks unlimited</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<!-- SECTION 2 -->
+<h1 id="s2"><span class="section-num">2.</span> Users &amp; User Journey</h1>
+
+<h2>2.1 Target Users</h2>
+<table>
+<tr><th>User Type</th><th>Description</th></tr>
+<tr><td>Students</td><td>Preparing for competitive exams (JEE, NEET), board exams, or college courses</td></tr>
+<tr><td>Self-improvers</td><td>Working on fitness, habits, or personal development goals</td></tr>
+<tr><td>Indie hackers / Builders</td><td>Developers building side projects who need accountability</td></tr>
+<tr><td>Professionals</td><td>Anyone with a time-bound goal who wants an AI accountability partner</td></tr>
+</table>
+
+<h2>2.2 Use Cases</h2>
+<ul>
+<li>Set a major goal and receive AI-generated daily mandates</li>
+<li>Track task completion across 3 categories: <span class="tag">Physical</span> <span class="tag">Intellectual</span> <span class="tag">Spiritual</span></li>
+<li>Journal daily wins, failures, adjustments with optional image attachments</li>
+<li>Chat with the AI for study plans, task breakdowns, progress analysis, or honest feedback</li>
+<li>Upgrade to Operator tier for unlimited features</li>
+</ul>
+
+<h2>2.3 User Journey</h2>
+<table>
+<tr><th>Step</th><th>Route</th><th>What Happens</th></tr>
+<tr><td>1. Signup</td><td><code>/signup</code></td><td>Enter name, username, email, password → Supabase creates auth user + profile</td></tr>
+<tr><td>2. Onboarding</td><td><code>/onboarding</code></td><td>Step 1: Upload photo (optional) → Step 2: Define goal, manifesto, timeframe</td></tr>
+<tr><td>3. Command Center</td><td><code>/dashboard</code></td><td>View Integrity Score, Decay Probability, pending mandates, journal count, live activity log</td></tr>
+<tr><td>4. Daily Loop</td><td><code>/dashboard/*</code></td><td>Manage mandates → Log journal → Chat with Neural Link AI</td></tr>
+<tr><td>5. Upgrade</td><td><code>/pricing</code></td><td>Checkout via Dodo Payments → webhook updates subscription tier</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<!-- SECTION 3 -->
+<h1 id="s3"><span class="section-num">3.</span> System Architecture</h1>
+
+<h2>3.1 High-Level Architecture</h2>
+<pre>
+┌──────────────────────────────────────────────────────────────────┐
+│                        BROWSER (Client)                         │
+│  Next.js 16 App Router · React 19 · TailwindCSS v4 · Framer    │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐    │
+│  │ Landing   │  │  Auth    │  │Dashboard │  │  AI Chat     │    │
+│  │  Page     │  │ Pages   │  │  Pages   │  │  (Streaming) │    │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────────┘    │
+└───────────────────────┬──────────────────────────────────────────┘
+                        │  HTTP / SSE
+┌───────────────────────▼──────────────────────────────────────────┐
+│                     NEXT.JS API ROUTES                            │
+│  ┌─────────────┐  ┌─────────────┐  ┌──────────────────────────┐  │
+│  │ /api/auth/* │  │ /api/chat   │  │ /api/dodo/*             │  │
+│  │ (callback)  │  │ (LangGraph  │  │ (checkout, webhook,     │  │
+│  │             │  │  Agent SSE) │  │  portal)                │  │
+│  └─────────────┘  └─────────────┘  └──────────────────────────┘  │
+└───────────────────────┬──────────────────────────────────────────┘
+                        │
+         ┌──────────────┼──────────────┐
+         ▼              ▼              ▼
+┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+│  Supabase   │ │  Groq API   │ │    Dodo     │
+│  (Auth, DB, │ │  (Llama 3.3 │ │  Payments   │
+│   Storage,  │ │   70B)      │ │             │
+│   RLS)      │ │             │ │             │
+└─────────────┘ └─────────────┘ └─────────────┘
+</pre>
+
+<h2>3.2 System Components</h2>
+<table>
+<tr><th>Component</th><th>Responsibility</th></tr>
+<tr><td>Next.js App Router</td><td>Page routing, SSR, API routes, middleware</td></tr>
+<tr><td>AuthContext</td><td>Client-side session management, signUp/signIn/signOut</td></tr>
+<tr><td>Middleware (proxy.ts)</td><td>JWT validation via <code>getClaims()</code>, session refresh, route protection</td></tr>
+<tr><td>DB Layer (<code>lib/db/*</code>)</td><td>7 CRUD modules — one per entity — querying Supabase</td></tr>
+<tr><td>LangGraph Agent</td><td>AI agent with 10 tools that reads and modifies user data</td></tr>
+<tr><td>Feature Gate</td><td>Tier-based limits (Observer vs Operator)</td></tr>
+<tr><td>Dodo Integration</td><td>Checkout sessions, webhook handling, customer portal</td></tr>
+<tr><td>Activity Log</td><td>Dual-write: Supabase DB + localStorage for live terminal view</td></tr>
+</table>
+
+<h2>3.3 Request Processing Flow (Chat Example)</h2>
+<table>
+<tr><th>Step</th><th>Description</th></tr>
+<tr><td>1</td><td>User types message in AIChat component</td></tr>
+<tr><td>2</td><td>Component POSTs to <code>/api/chat</code> with message, history, integrity, userId</td></tr>
+<tr><td>3</td><td>API route creates server-side Supabase client from request cookies</td></tr>
+<tr><td>4</td><td>Creates LangGraph agent with 10 tools scoped to userId</td></tr>
+<tr><td>5</td><td>Converts chat history to LangChain message format</td></tr>
+<tr><td>6</td><td>Streams agent response via SSE: text tokens + tool results</td></tr>
+<tr><td>7</td><td>Client renders text in real-time via ReactMarkdown</td></tr>
+<tr><td>8</td><td>Mutating tool actions trigger UI refresh via <code>CustomEvent("neural-link-data-change")</code></td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<!-- SECTION 4 -->
+<h1 id="s4"><span class="section-num">4.</span> Technology Stack</h1>
+
+<h2>4.1 Core Stack</h2>
+<table>
+<tr><th>Layer</th><th>Technology</th><th>Version</th><th>Purpose</th></tr>
+<tr><td>Framework</td><td>Next.js</td><td>16.1.4</td><td>App Router, SSR, API routes</td></tr>
+<tr><td>UI Library</td><td>React</td><td>19.2.3</td><td>Component rendering</td></tr>
+<tr><td>Language</td><td>TypeScript</td><td>5.x</td><td>Static typing</td></tr>
+<tr><td>Styling</td><td>TailwindCSS</td><td>4.x</td><td>Utility-first CSS</td></tr>
+<tr><td>Auth + DB</td><td>Supabase</td><td>SSR 0.8 + JS 2.97</td><td>Auth, PostgreSQL, Storage, RLS</td></tr>
+<tr><td>AI / LLM</td><td>Groq + LangChain</td><td>—</td><td>Llama 3.3 70B via Groq API</td></tr>
+<tr><td>AI Orchestration</td><td>LangGraph</td><td>1.1.5</td><td>Agent state machine with tool calling</td></tr>
+<tr><td>Payments</td><td>Dodo Payments</td><td>2.20.0</td><td>Subscription checkout + webhooks</td></tr>
+<tr><td>Animation</td><td>Framer Motion</td><td>12.33.0</td><td>Page transitions, micro-animations</td></tr>
+<tr><td>Markdown</td><td>react-markdown</td><td>10.1.0</td><td>Render AI chat responses</td></tr>
+<tr><td>Icons</td><td>Lucide React</td><td>0.563</td><td>UI iconography</td></tr>
+<tr><td>Fonts</td><td>Google Fonts</td><td>—</td><td>Inter, Space Grotesk, Roboto Mono</td></tr>
+<tr><td>Validation</td><td>Zod</td><td>4.3.6</td><td>Tool input validation in LangGraph</td></tr>
+</table>
+
+<h2>4.2 Infrastructure</h2>
+<table>
+<tr><th>Service</th><th>Purpose</th></tr>
+<tr><td>Supabase</td><td>PostgreSQL database, authentication, file storage, Row Level Security</td></tr>
+<tr><td>Groq</td><td>Ultra-fast LLM inference (Llama 3.3 70B)</td></tr>
+<tr><td>Dodo Payments</td><td>Payment processing (checkout, webhooks, customer portal)</td></tr>
+<tr><td>Vercel (recommended)</td><td>Hosting, edge functions, static asset CDN</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<!-- SECTION 5 -->
+<h1 id="s5"><span class="section-num">5.</span> Core Features</h1>
+
+<h2>5.1 Missions (Goals)</h2>
+<p>The foundational entity — a user's overarching objective.</p>
+<table>
+<tr><th>Field</th><th>Purpose</th></tr>
+<tr><td><code>goal</code></td><td>What the user wants to achieve</td></tr>
+<tr><td><code>manifesto</code></td><td>Detailed plan/strategy</td></tr>
+<tr><td><code>timeframe</code></td><td>Duration (e.g., "30 Days", "6 Months")</td></tr>
+<tr><td><code>is_active</code></td><td>Only one active at a time</td></tr>
+<tr><td><code>image_url</code></td><td>Optional uploaded image via Supabase Storage</td></tr>
+</table>
+<div class="note">Created during onboarding or via MissionSelector modal. <code>upsertActiveMission()</code> updates if exists, otherwise creates new and deactivates others. AI agent can also update via <code>update_mission</code> tool.</div>
+
+<h2>5.2 Mandates (Tasks / Directives)</h2>
+<p>Daily actionable tasks, optionally linked to a mission.</p>
+<table>
+<tr><th>Field</th><th>Purpose</th></tr>
+<tr><td><code>label</code></td><td>Short task description</td></tr>
+<tr><td><code>category</code></td><td><span class="tag">physical</span> <span class="tag">intellectual</span> <span class="tag">spiritual</span></td></tr>
+<tr><td><code>rationale</code></td><td>Why this task matters (often AI-generated)</td></tr>
+<tr><td><code>completed</code></td><td>Boolean completion status</td></tr>
+<tr><td><code>mission_id</code></td><td>FK to active mission (nullable)</td></tr>
+</table>
+<p><strong>Key behaviors:</strong> Completion rate = <strong>Integrity Score</strong>. Observer limit: 5 mandates. "Verify Compliance" has a 1.5s scanning animation. AI can create/complete/delete/edit mandates via tools.</p>
+
+<h2>5.3 Journal (Protocol Log)</h2>
+<p>Daily reflection entries with wins, failures, and adjustments.</p>
+<p><strong>Key behaviors:</strong> Split-view UI (form left, timeline right). Image upload via Supabase Storage. Can link to missions and mandates. Observer limit: 10 entries. AI can create entries via <code>create_journal_entry</code> tool.</p>
+
+<h2>5.4 Neural Link (AI Chat)</h2>
+<p>An AI agent powered by LangGraph that can reason, call tools, and modify user data in real-time.</p>
+
+<h3>Available Tools (10 total)</h3>
+<table>
+<tr><th>Tool</th><th>Type</th><th>Purpose</th></tr>
+<tr><td><code>get_user_context</code></td><td><span class="tag-green">Read</span></td><td>Fetches mission, mandates, journal, and integrity</td></tr>
+<tr><td><code>get_upcoming_tasks</code></td><td><span class="tag-green">Read</span></td><td>Lists mandates with optional filter</td></tr>
+<tr><td><code>break_down_task</code></td><td><span class="tag-green">Read</span></td><td>Decomposes complex goals into sub-tasks (suggestions only)</td></tr>
+<tr><td><code>search_journal</code></td><td><span class="tag-green">Read</span></td><td>Searches journal entries by keyword</td></tr>
+<tr><td><code>create_mandate</code></td><td><span class="tag-red">Write</span></td><td>Creates a single mandate</td></tr>
+<tr><td><code>toggle_mandate</code></td><td><span class="tag-red">Write</span></td><td>Marks mandate as completed/uncompleted</td></tr>
+<tr><td><code>delete_mandate</code></td><td><span class="tag-red">Write</span></td><td>Permanently deletes a mandate</td></tr>
+<tr><td><code>edit_mandate</code></td><td><span class="tag-red">Write</span></td><td>Updates a mandate's label</td></tr>
+<tr><td><code>update_mission</code></td><td><span class="tag-red">Write</span></td><td>Creates or updates the active mission</td></tr>
+<tr><td><code>create_journal_entry</code></td><td><span class="tag-red">Write</span></td><td>Creates a journal entry</td></tr>
+</table>
+
+<h2>5.5 Activity Log (Live System Terminal)</h2>
+<p>Real-time event feed displayed in the Command Center.</p>
+<ul>
+<li><strong>Dual-write:</strong> Events go to Supabase DB + localStorage (zero-latency local display)</li>
+<li><strong>Tier-gated history:</strong> Observer = 24 hours, Operator = 1 year</li>
+<li><strong>Event types:</strong> <code>mandate</code>, <code>journal</code>, <code>mission</code>, <code>ai</code>, <code>system</code></li>
+<li><strong>Polling:</strong> localStorage checked every 2s for new events</li>
+</ul>
+
+<div class="page-break"></div>
+
+<!-- SECTION 6 -->
+<h1 id="s6"><span class="section-num">6.</span> AI System Deep Dive</h1>
+
+<h2>6.1 Agent Architecture</h2>
+<pre>
+                    ┌─────────────┐
+         ┌─────────│  __start__   │
+         │         └─────────────┘
+         ▼
+    ┌──────────┐    tool_calls?     ┌──────────┐
+    │  Agent   │───── YES ─────────▶│  Tools   │
+    │  (LLM)  │                     │  (10x)   │
+    │          │◀────────────────────│          │
+    └──────────┘                     └──────────┘
+         │
+       NO tool_calls
+         │
+         ▼
+    ┌──────────┐
+    │   END    │
+    └──────────┘
+</pre>
+<table>
+<tr><th>Parameter</th><th>Value</th></tr>
+<tr><td>LLM</td><td>ChatGroq — <code>llama-3.3-70b-instant</code> (or <code>versatile</code>)</td></tr>
+<tr><td>Temperature</td><td>0.7</td></tr>
+<tr><td>Max Tokens</td><td>2,048</td></tr>
+<tr><td>Recursion Limit</td><td>10 (prevents infinite tool loops)</td></tr>
+<tr><td>Error Handling</td><td>If Groq 400 error → retries with plain (no tools) model</td></tr>
+</table>
+
+<h2>6.2 System Prompt Persona</h2>
+<p>The AI is called the <strong>"Switch Protocol"</strong> — an elite AI mentor that acts as a strict but warm polymath. It adapts tone based on integrity: &lt;30% = direct confrontation, &gt;80% = genuine respect. It has expertise in academics, programming, fitness, psychology, philosophy, career strategy, and more.</p>
+
+<h2>6.3 Streaming Pipeline</h2>
+<table>
+<tr><th>Direction</th><th>Event</th><th>Description</th></tr>
+<tr><td>Client → Server</td><td>POST</td><td><code>{ message, history, integrity, userId }</code></td></tr>
+<tr><td>Server → Client</td><td><code>type: "text"</code></td><td>Text tokens from LLM (streamed)</td></tr>
+<tr><td>Server → Client</td><td><code>type: "tool_result"</code></td><td>Tool execution results (create_mandate, etc.)</td></tr>
+<tr><td>Server → Client</td><td><code>type: "error"</code></td><td>Error messages</td></tr>
+<tr><td>Server → Client</td><td><code>type: "done"</code></td><td>Stream complete</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<!-- SECTION 7 -->
+<h1 id="s7"><span class="section-num">7.</span> Database Schema</h1>
+
+<h2>7.1 Entity Relationship Diagram</h2>
+<pre>
+auth.users (Supabase Auth)
+    │
+    ▼
+profiles (1:1)
+    ├── missions (1:many)  ← is_active flag marks current
+    │     ├── mandates (1:many, nullable mission_id)
+    │     ├── journal_entries (1:many, nullable mission_id + mandate_id)
+    │     └── conversations (1:many, nullable mission_id)
+    │           └── ai_chats (1:many)
+    ├── subscriptions (1:1)
+    └── activity_log (1:many)
+</pre>
+
+<h2>7.2 Tables</h2>
+
+<h3>profiles</h3>
+<table>
+<tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+<tr><td><code>id</code></td><td>UUID (PK)</td><td>References <code>auth.users(id)</code></td></tr>
+<tr><td><code>name</code></td><td>TEXT</td><td>Display name</td></tr>
+<tr><td><code>username</code></td><td>TEXT (UNIQUE)</td><td>Operative handle</td></tr>
+<tr><td><code>email</code></td><td>TEXT</td><td>Email address</td></tr>
+<tr><td><code>avatar_url</code></td><td>TEXT</td><td>Profile image URL</td></tr>
+</table>
+
+<h3>missions</h3>
+<table>
+<tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+<tr><td><code>id</code></td><td>UUID (PK)</td><td>Auto-generated</td></tr>
+<tr><td><code>user_id</code></td><td>UUID (FK)</td><td>References <code>profiles(id)</code></td></tr>
+<tr><td><code>goal</code></td><td>TEXT</td><td>Primary objective</td></tr>
+<tr><td><code>manifesto</code></td><td>TEXT</td><td>Detailed plan</td></tr>
+<tr><td><code>timeframe</code></td><td>TEXT</td><td>Duration (default: "30 Days")</td></tr>
+<tr><td><code>is_active</code></td><td>BOOLEAN</td><td>Only one active per user</td></tr>
+</table>
+
+<h3>mandates</h3>
+<table>
+<tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+<tr><td><code>id</code></td><td>UUID (PK)</td><td>Auto-generated</td></tr>
+<tr><td><code>user_id</code></td><td>UUID (FK)</td><td>References <code>profiles(id)</code></td></tr>
+<tr><td><code>mission_id</code></td><td>UUID (FK, nullable)</td><td>Link to mission</td></tr>
+<tr><td><code>label</code></td><td>TEXT</td><td>Task description</td></tr>
+<tr><td><code>category</code></td><td>TEXT</td><td>CHECK: physical, intellectual, spiritual</td></tr>
+<tr><td><code>rationale</code></td><td>TEXT</td><td>Why this task matters</td></tr>
+<tr><td><code>completed</code></td><td>BOOLEAN</td><td>Default: false</td></tr>
+<tr><td><code>completed_at</code></td><td>TIMESTAMPTZ</td><td>Set when completed</td></tr>
+</table>
+
+<h3>journal_entries</h3>
+<table>
+<tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+<tr><td><code>id</code></td><td>UUID (PK)</td><td>Auto-generated</td></tr>
+<tr><td><code>user_id</code></td><td>UUID (FK)</td><td>References <code>profiles(id)</code></td></tr>
+<tr><td><code>mission_id</code> / <code>mandate_id</code></td><td>UUID (FK, nullable)</td><td>Optional links</td></tr>
+<tr><td><code>date</code></td><td>DATE</td><td>Default: current_date</td></tr>
+<tr><td><code>wins</code> / <code>failures</code> / <code>adjustments</code></td><td>TEXT</td><td>Reflection content</td></tr>
+</table>
+
+<h3>conversations &amp; ai_chats</h3>
+<table>
+<tr><th>Table</th><th>Key Columns</th><th>Notes</th></tr>
+<tr><td>conversations</td><td><code>id</code>, <code>user_id</code>, <code>mission_id</code>, <code>title</code></td><td>Chat thread containers</td></tr>
+<tr><td>ai_chats</td><td><code>id</code>, <code>user_id</code>, <code>conversation_id</code>, <code>sender</code>, <code>text</code></td><td>Individual messages</td></tr>
+</table>
+
+<h3>subscriptions</h3>
+<table>
+<tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+<tr><td><code>tier</code></td><td>TEXT</td><td>CHECK: observer, operator</td></tr>
+<tr><td><code>status</code></td><td>TEXT</td><td>CHECK: active, cancelled, on_hold, failed, renewed</td></tr>
+<tr><td><code>dodo_customer_id</code> / <code>dodo_subscription_id</code></td><td>TEXT</td><td>Dodo Payments references</td></tr>
+<tr><td><code>current_period_end</code></td><td>TIMESTAMPTZ</td><td>Billing period end</td></tr>
+</table>
+
+<h3>activity_log</h3>
+<table>
+<tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+<tr><td><code>type</code></td><td>TEXT</td><td>CHECK: mandate, journal, mission, ai, system</td></tr>
+<tr><td><code>message</code></td><td>TEXT</td><td>Event description</td></tr>
+</table>
+
+<h2>7.3 Row Level Security</h2>
+<div class="note">All tables have RLS enabled. Policy: <strong>users can only access their own data</strong> (<code>auth.uid() = user_id</code>). Subscriptions are SELECT-only for users. Service role client (used in webhooks) bypasses RLS.</div>
+
+<h2>7.4 Auto-Updated Timestamps</h2>
+<p>A trigger function <code>update_updated_at()</code> fires <code>BEFORE UPDATE</code> on all tables with an <code>updated_at</code> column, automatically setting it to <code>now()</code>.</p>
+
+<div class="page-break"></div>
+
+<!-- SECTION 8 -->
+<h1 id="s8"><span class="section-num">8.</span> API Reference</h1>
+
+<h2>8.1 Authentication</h2>
+<table>
+<tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+<tr><td><code>/api/auth/callback</code></td><td>GET</td><td>Exchanges auth code for session. Params: <code>code</code>, <code>next</code> (default: /dashboard)</td></tr>
+</table>
+
+<h2>8.2 AI Chat</h2>
+<table>
+<tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+<tr><td><code>/api/chat</code></td><td>POST</td><td>Main AI agent — streams response via SSE</td></tr>
+<tr><td><code>/api/chat/actions</code></td><td>POST</td><td>Extracts structured actions from AI response (legacy)</td></tr>
+</table>
+<p><strong>Request body:</strong> <code>{ message, history[], integrity, userId }</code></p>
+<p><strong>SSE events:</strong> <code>text</code> (token), <code>tool_result</code> (tool output), <code>error</code>, <code>done</code></p>
+
+<h2>8.3 Payments (Dodo)</h2>
+<table>
+<tr><th>Endpoint</th><th>Method</th><th>Purpose</th></tr>
+<tr><td><code>/api/dodo/create-checkout</code></td><td>POST</td><td>Creates a Dodo checkout session. Body: <code>{ annual: bool }</code></td></tr>
+<tr><td><code>/api/dodo/webhook</code></td><td>POST</td><td>Handles: <code>subscription.active</code>, <code>.renewed</code>, <code>.on_hold</code>, <code>.failed</code>, <code>.cancelled</code></td></tr>
+<tr><td><code>/api/dodo/portal</code></td><td>POST</td><td>Creates customer portal link for subscription management</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<!-- SECTION 9 -->
+<h1 id="s9"><span class="section-num">9.</span> Frontend Architecture</h1>
+
+<h2>9.1 Pages</h2>
+<table>
+<tr><th>Route</th><th>Description</th></tr>
+<tr><td><code>/</code></td><td>Landing page: Hero, DecayDemo, AIPrompt, Manifesto, Methodology, Pricing, FAQ</td></tr>
+<tr><td><code>/login</code></td><td>Email/password login via Supabase</td></tr>
+<tr><td><code>/signup</code></td><td>Registration with name, username, email, password</td></tr>
+<tr><td><code>/onboarding</code></td><td>2-step: image upload → goal/manifesto/timeframe</td></tr>
+<tr><td><code>/dashboard</code></td><td>Command Center — HUD overview</td></tr>
+<tr><td><code>/dashboard/mandates</code></td><td>Full mandate management</td></tr>
+<tr><td><code>/dashboard/journal</code></td><td>Journal entry form + archive timeline</td></tr>
+<tr><td><code>/dashboard/chat</code></td><td>Full-page Neural Link AI chat</td></tr>
+<tr><td><code>/dashboard/accounts</code></td><td>Subscription tier, billing, Dodo portal</td></tr>
+<tr><td><code>/pricing</code></td><td>Standalone pricing page</td></tr>
+</table>
+
+<h2>9.2 Key Components</h2>
+<table>
+<tr><th>Component</th><th>File</th><th>Purpose</th></tr>
+<tr><td>AIChat</td><td><code>dashboard/AIChat.tsx</code></td><td>Chat with streaming, markdown rendering, tool action cards</td></tr>
+<tr><td>Mandates</td><td><code>dashboard/Mandates.tsx</code></td><td>Task list with categories, verification animation, tier limits</td></tr>
+<tr><td>Journal</td><td><code>dashboard/Journal.tsx</code></td><td>Split-view entry form + timeline, image upload</td></tr>
+<tr><td>MissionSelector</td><td><code>dashboard/MissionSelector.tsx</code></td><td>Modal to set/update goal, manifesto, timeframe</td></tr>
+<tr><td>Sidebar</td><td><code>dashboard/Sidebar.tsx</code></td><td>Fixed left navigation with module links and tier badge</td></tr>
+<tr><td>LiveSystemLog</td><td><code>dashboard/LiveSystemLog.tsx</code></td><td>Real-time activity feed with color-coded events</td></tr>
+<tr><td>OpsSummary</td><td><code>dashboard/OpsSummary.tsx</code></td><td>Per-category compliance breakdown</td></tr>
+<tr><td>FutureSelfImage</td><td><code>dashboard/FutureSelfImage.tsx</code></td><td>User avatar with integrity-based visual effects</td></tr>
+<tr><td>GlobalSearch</td><td><code>GlobalSearch.tsx</code></td><td>Floating search bar on landing page (Ctrl+K)</td></tr>
+</table>
+
+<h2>9.3 Design System</h2>
+<table>
+<tr><th>Element</th><th>Value</th></tr>
+<tr><td>Theme</td><td>Dark mode only (<code>bg-black</code>, <code>text-white</code>)</td></tr>
+<tr><td>Accent Color</td><td>Neon green/yellow (CSS variable <code>--accent</code>)</td></tr>
+<tr><td>Fonts</td><td>Inter (body), Space Grotesk (display), Roboto Mono (monospace)</td></tr>
+<tr><td>UI Style</td><td>Cyberpunk / Military HUD — scanlines, grids, glowing borders, uppercase</td></tr>
+<tr><td>Animation</td><td>Framer Motion for transitions, CSS pulse for live indicators</td></tr>
+</table>
+
+<h2>9.4 State Management</h2>
+<ul>
+<li><strong>Server state:</strong> Fetched from Supabase on component mount via <code>useEffect</code></li>
+<li><strong>Session:</strong> <code>AuthContext</code> (React Context) — session, user, loading, auth methods</li>
+<li><strong>Local:</strong> <code>useState</code> for UI, <code>sessionStorage</code> for chat messages</li>
+<li><strong>Cross-component:</strong> <code>CustomEvent("neural-link-data-change")</code> dispatched when AI modifies data</li>
+</ul>
+
+<div class="page-break"></div>
+
+<!-- SECTION 10 -->
+<h1 id="s10"><span class="section-num">10.</span> Authentication &amp; Security</h1>
+
+<h2>10.1 Auth Flow</h2>
+<table>
+<tr><th>Action</th><th>Method</th><th>Redirect</th></tr>
+<tr><td>Signup</td><td><code>supabase.auth.signUp({ email, password, data: { name, username } })</code></td><td><code>/onboarding</code></td></tr>
+<tr><td>Login</td><td><code>supabase.auth.signInWithPassword({ email, password })</code></td><td><code>/dashboard</code></td></tr>
+<tr><td>OAuth Callback</td><td><code>supabase.auth.exchangeCodeForSession(code)</code></td><td><code>/dashboard</code></td></tr>
+<tr><td>Sign Out</td><td><code>supabase.auth.signOut()</code></td><td><code>/</code> or <code>/login</code></td></tr>
+</table>
+
+<h2>10.2 Middleware (Session Proxy)</h2>
+<p><code>middleware.ts</code> runs on every request and calls <code>updateSession()</code>:</p>
+<ol>
+<li>Creates server-side Supabase client</li>
+<li>Calls <code>getClaims()</code> — validates JWT signature (more secure than <code>getSession()</code>)</li>
+<li>If unauthenticated + non-public route → redirect to <code>/login</code></li>
+<li>Public routes: <code>/</code>, <code>/login</code>, <code>/signup</code>, <code>/auth/*</code>, <code>/api/*</code>, <code>/pricing</code></li>
+</ol>
+
+<h2>10.3 Supabase Client Types</h2>
+<table>
+<tr><th>Client</th><th>File</th><th>Use Case</th></tr>
+<tr><td>Browser Client</td><td><code>lib/supabase/client.ts</code></td><td>Client Components (DB reads, auth listeners)</td></tr>
+<tr><td>Server Client</td><td><code>lib/supabase/server.ts</code></td><td>Route Handlers, Server Components</td></tr>
+<tr><td>Service Role Client</td><td><code>lib/supabase/server.ts</code></td><td>Webhooks, admin tasks — bypasses RLS</td></tr>
+<tr><td>Proxy Client</td><td><code>lib/supabase/proxy.ts</code></td><td>Middleware — JWT validation + token refresh</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<!-- SECTION 11 -->
+<h1 id="s11"><span class="section-num">11.</span> Payments &amp; Subscriptions</h1>
+
+<h2>11.1 Pricing Tiers</h2>
+<table>
+<tr><th>Tier</th><th>Price</th><th>DB Value</th></tr>
+<tr><td><strong>OBSERVER</strong></td><td>Free</td><td><code>observer</code></td></tr>
+<tr><td><strong>OPERATOR</strong></td><td>$7/month or $56/year</td><td><code>operator</code></td></tr>
+</table>
+
+<h2>11.2 Feature Gating</h2>
+<table>
+<tr><th>Feature</th><th>Observer (Free)</th><th>Operator ($7/mo)</th></tr>
+<tr><td>Active goals</td><td>1</td><td>Unlimited</td></tr>
+<tr><td>Daily mandates</td><td>Max 5</td><td>Unlimited</td></tr>
+<tr><td>Journal entries</td><td>Max 10</td><td>Unlimited</td></tr>
+<tr><td>AI mandate generation</td><td>3/day</td><td>20/day</td></tr>
+<tr><td>AI chat messages</td><td>10/day</td><td>Unlimited</td></tr>
+<tr><td>Chat conversations</td><td>3 total</td><td>Unlimited</td></tr>
+<tr><td>Weekly image evolution</td><td>✗</td><td>✓</td></tr>
+<tr><td>Decay recovery protocols</td><td>✗</td><td>✓</td></tr>
+<tr><td>Activity log history</td><td>24 hours</td><td>1 year</td></tr>
+</table>
+
+<h2>11.3 Checkout Flow</h2>
+<ol>
+<li>User clicks "Upgrade" → Frontend POSTs to <code>/api/dodo/create-checkout</code></li>
+<li>Server creates Dodo checkout session with product ID + <code>metadata: { user_id }</code></li>
+<li>Returns <code>{ checkout_url }</code> → Frontend redirects to Dodo</li>
+<li>After payment, Dodo sends webhook to <code>/api/dodo/webhook</code></li>
+<li>Webhook upserts subscription (tier: "operator", status: "active")</li>
+</ol>
+
+<div class="page-break"></div>
+
+<!-- SECTION 12 -->
+<h1 id="s12"><span class="section-num">12.</span> Getting Started</h1>
+
+<h2>12.1 Prerequisites</h2>
+<ul>
+<li>Node.js 18+</li>
+<li>npm or equivalent package manager</li>
+<li>Supabase project (free tier works)</li>
+<li>Groq API key (console.groq.com)</li>
+<li>Dodo Payments account (optional, for payments)</li>
+</ul>
+
+<h2>12.2 Environment Setup</h2>
+<p>Copy <code>.env.example</code> to <code>.env.local</code> and fill in:</p>
+<pre>
+# AI / LLM
+GROQ_API_KEY=gsk_...
+GROQ_MODEL_ID=llama-3.3-70b-instant
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+# Dodo Payments (optional)
+DODO_API_KEY=...
+DODO_WEBHOOK_SECRET=...
+NEXT_PUBLIC_DODO_OPERATOR_PRODUCT_ID=...
+NEXT_PUBLIC_DODO_OPERATOR_ANNUAL_PRODUCT_ID=...
+
+# App
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+</pre>
+
+<h2>12.3 Database Setup</h2>
+<p>Run the SQL schema from <code>planning.md</code> in the Supabase SQL Editor. Creates all 8 tables, RLS policies, and triggers.</p>
+
+<h2>12.4 Storage Buckets</h2>
+<p>Create these buckets in Supabase Storage:</p>
+<ol>
+<li><code>avatars</code> (public)</li>
+<li><code>mission-images</code> (private)</li>
+<li><code>journal-images</code> (public)</li>
+</ol>
+
+<h2>12.5 Run Locally</h2>
+<pre>
+npm install
+npm run dev
+</pre>
+<p>Open <a href="http://localhost:3000">http://localhost:3000</a></p>
+
+<div class="page-break"></div>
+
+<!-- SECTION 13 -->
+<h1 id="s13"><span class="section-num">13.</span> Development Workflow</h1>
+
+<h2>13.1 Project Structure</h2>
+<pre>
+Switch/
+├── .env.example / .env.local
+├── middleware.ts               # Session refresh
+├── package.json
+├── planning.md                 # DB schema + integration plan
+├── src/
+│   ├── app/
+│   │   ├── (landing-page)/     # Marketing (Hero, Pricing, FAQ, etc.)
+│   │   ├── api/
+│   │   │   ├── auth/callback/  # OAuth callback
+│   │   │   ├── chat/           # AI agent + action extraction
+│   │   │   └── dodo/           # Payments (checkout, webhook, portal)
+│   │   ├── dashboard/
+│   │   │   ├── layout.tsx      # Sidebar layout
+│   │   │   ├── page.tsx        # Command Center
+│   │   │   ├── accounts/ chat/ journal/ mandates/
+│   │   ├── login/ signup/ onboarding/ pricing/
+│   │   ├── layout.tsx          # Root (AuthProvider, GlobalSearch)
+│   │   └── globals.css
+│   ├── components/
+│   │   ├── dashboard/          # 9 dashboard components
+│   │   ├── ui/                 # Button, Input
+│   │   └── GlobalSearch.tsx
+│   ├── context/AuthContext.tsx
+│   ├── lib/
+│   │   ├── agent/              # agent.ts, prompts.ts, tools.ts
+│   │   ├── db/                 # 7 CRUD modules
+│   │   ├── supabase/           # client.ts, server.ts, proxy.ts
+│   │   ├── activityLog.ts, auth.ts, dodo.ts
+│   │   ├── featureGate.ts, storage.ts, utils.ts
+│   └── types.ts
+</pre>
+
+<h2>13.2 Key Conventions</h2>
+<table>
+<tr><th>Convention</th><th>Detail</th></tr>
+<tr><td>File naming</td><td>kebab-case for DB modules, PascalCase for components</td></tr>
+<tr><td>Imports</td><td><code>@/</code> alias resolves to <code>src/</code></td></tr>
+<tr><td>DB access</td><td>Always through <code>lib/db/*</code> modules — never direct Supabase queries in components</td></tr>
+<tr><td>Client vs Server</td><td><code>"use client"</code> directive for interactive components; API routes are server-only</td></tr>
+<tr><td>State</td><td>No global state library — React Context for auth, component-local for everything else</td></tr>
+<tr><td>Error handling</td><td>DB modules throw; components catch + console.error; APIs return JSON errors</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<!-- SECTION 14 -->
+<h1 id="s14"><span class="section-num">14.</span> Known Limitations &amp; Future Roadmap</h1>
+
+<h2>14.1 Known Limitations</h2>
+<table>
+<tr><th>Limitation</th><th>Detail</th></tr>
+<tr><td>No conversation persistence</td><td>AIChat uses <code>sessionStorage</code>, not the <code>ai_chats</code> DB table. DB modules exist but aren't wired up.</td></tr>
+<tr><td>No real-time sync</td><td>Multi-tab changes don't auto-reflect (no Supabase Realtime subscriptions)</td></tr>
+<tr><td>Legacy auth code</td><td><code>lib/auth.ts</code> has dummy localStorage auth from earlier version — deprecated</td></tr>
+<tr><td>No mobile responsiveness</td><td>Dashboard optimized for desktop (≥1280px), no hamburger menu</td></tr>
+<tr><td>Client-side rate limiting only</td><td>Mandate limits via <code>featureGate.ts</code> are client-side only</td></tr>
+<tr><td>No email verification gate</td><td>Supabase signUp works but unverified emails aren't blocked</td></tr>
+</table>
+
+<h2>14.2 Future Roadmap</h2>
+<table>
+<tr><th>Feature</th><th>Description</th></tr>
+<tr><td>Persist chat to DB</td><td>Wire up <code>saveChatMessage()</code> and <code>getChatHistory()</code> in AIChat</td></tr>
+<tr><td>Conversation threads</td><td>Multiple AI conversation threads, scoped to missions</td></tr>
+<tr><td>Weekly image evolution</td><td>AI-generated images showing "future self" evolving based on integrity</td></tr>
+<tr><td>Decay recovery protocols</td><td>Special recovery missions when integrity drops below 30%</td></tr>
+<tr><td>Mobile responsive UI</td><td>Collapsible sidebar, touch-friendly interactions</td></tr>
+<tr><td>Real-time sync</td><td>Supabase Realtime subscriptions for multi-tab/device</td></tr>
+<tr><td>ELITE tier</td><td>Third pricing tier with advanced analytics</td></tr>
+<tr><td>Social features</td><td>Public profiles, accountability partners, leaderboards</td></tr>
+<tr><td>Server-side rate limiting</td><td>Enforce AI message quotas server-side</td></tr>
+</table>
+
+<br><br>
+<hr>
+<p style="text-align:center;color:#80868b;font-size:10pt">End of Documentation — DecayState © 2026</p>
+
+</body>
+</html>

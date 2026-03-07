@@ -3,45 +3,54 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChatMessage } from "@/types";
-import { Send, Plus, Target, Check, Loader2, BrainCircuit } from "lucide-react";
+import { Send, Plus, Target, Loader2, BrainCircuit, CheckCircle2, Trash2, Pencil, BookOpen, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { logActivity } from "@/lib/activityLog";
 import { useAuth } from "@/context/AuthContext";
-import { addMandate } from "@/lib/db/mandates";
-import { upsertActiveMission } from "@/lib/db/mission";
-import { getMandates } from "@/lib/db/mandates";
 
 interface AIChatProps {
   integrity: number;
 }
 
-interface ExtractedActions {
-  mandates: { label: string; category: string; rationale?: string }[];
-  mission?: { goal: string; timeframe: string } | null;
-}
-
-interface ActionMessage {
-  actions: ExtractedActions;
-  applied: { mandates: boolean; mission: boolean };
+interface ToolAction {
+  tool: string;
+  result: any;
 }
 
 export function AIChat({ integrity }: AIChatProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     if (typeof window === "undefined") return [];
-    const saved = sessionStorage.getItem("switch_chat_messages");
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = sessionStorage.getItem("switch_chat_messages");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      sessionStorage.removeItem("switch_chat_messages");
+    }
+    return [];
   });
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [extractingActions, setExtractingActions] = useState(false);
-  const [actionMessages, setActionMessages] = useState<
-    Map<string, ActionMessage>
-  >(() => {
-    if (typeof window === "undefined") return new Map();
-    const saved = sessionStorage.getItem("switch_chat_actions");
-    return saved ? new Map(JSON.parse(saved)) : new Map();
-  });
+  const [toolActions, setToolActions] = useState<Map<string, ToolAction[]>>(
+    () => {
+      if (typeof window === "undefined") return new Map();
+      try {
+        const saved = sessionStorage.getItem("switch_chat_tool_actions");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) return new Map(parsed);
+        }
+      } catch {
+        sessionStorage.removeItem("switch_chat_tool_actions");
+      }
+      // Clean up legacy key from old code
+      sessionStorage.removeItem("switch_chat_actions");
+      return new Map();
+    },
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Initial greeting
@@ -58,120 +67,49 @@ export function AIChat({ integrity }: AIChatProps) {
     }
   }, []);
 
-  // Persist messages and actions
+  // Persist messages and tool actions
   useEffect(() => {
     sessionStorage.setItem("switch_chat_messages", JSON.stringify(messages));
   }, [messages]);
 
   useEffect(() => {
     sessionStorage.setItem(
-      "switch_chat_actions",
-      JSON.stringify(Array.from(actionMessages.entries())),
+      "switch_chat_tool_actions",
+      JSON.stringify(Array.from(toolActions.entries())),
     );
-  }, [actionMessages]);
+  }, [toolActions]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, actionMessages]);
+  }, [messages, toolActions]);
 
-  // Extract actions from AI response (old flow)
-  const extractActions = async (aiResponse: string, msgId: string) => {
-    setExtractingActions(true);
-    try {
-      const currentMandates = user ? await getMandates(user.id) : [];
-      const res = await fetch("/api/chat/actions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ aiResponse, currentMandates }),
-      });
-      const actions: ExtractedActions = await res.json();
-      if (actions.mandates.length > 0 || actions.mission) {
-        setActionMessages((prev) => {
-          const next = new Map(prev);
-          next.set(msgId, {
-            actions,
-            applied: { mandates: false, mission: false },
-          });
-          return next;
-        });
-      }
-    } catch (err) {
-      console.error("Action extraction failed:", err);
-    } finally {
-      setExtractingActions(false);
+  // Notify other components that data changed (mandates, journal, mission)
+  const notifyDataChange = () => {
+    window.dispatchEvent(new CustomEvent("neural-link-data-change"));
+  };
+
+  // Get icon and label for a tool action
+  const getToolDisplay = (action: ToolAction) => {
+    const result = action.result;
+    const success = typeof result === "object" && result?.success;
+    const message = typeof result === "object" ? result?.message : String(result);
+
+    switch (action.tool) {
+      case "create_mandate":
+        return { icon: Plus, label: "Mandate Created", message, success };
+      case "toggle_mandate":
+        return { icon: CheckCircle2, label: "Mandate Updated", message, success };
+      case "delete_mandate":
+        return { icon: Trash2, label: "Mandate Deleted", message, success };
+      case "edit_mandate":
+        return { icon: Pencil, label: "Mandate Edited", message, success };
+      case "update_mission":
+        return { icon: Target, label: "Mission Updated", message, success };
+      case "create_journal_entry":
+        return { icon: BookOpen, label: "Journal Entry Created", message, success };
+      default:
+        return null; // Read-only tools don't need visual feedback
     }
-  };
-
-  // Normalize category to match DB constraint (physical | intellectual | spiritual)
-  const normalizeCategory = (
-    cat: string,
-  ): "physical" | "intellectual" | "spiritual" => {
-    const c = cat.toLowerCase().trim();
-    if (c.startsWith("phys")) return "physical";
-    if (
-      c.startsWith("int") ||
-      c.startsWith("ment") ||
-      c.startsWith("acad") ||
-      c.startsWith("stud")
-    )
-      return "intellectual";
-    if (c.startsWith("spir") || c.startsWith("mind") || c.startsWith("med"))
-      return "spiritual";
-    return "intellectual"; // safe default
-  };
-
-  // Apply mandates (old flow — user confirms)
-  const applyMandates = async (msgId: string) => {
-    const am = actionMessages.get(msgId);
-    if (!am || !user) return;
-
-    for (const m of am.actions.mandates) {
-      await addMandate(user.id, {
-        label: m.label,
-        category: normalizeCategory(m.category),
-        rationale: m.rationale,
-        completed: false,
-      });
-    }
-    logActivity(
-      "ai",
-      `${am.actions.mandates.length} mandates added via Neural Link`,
-      user.id,
-    );
-
-    setActionMessages((prev) => {
-      const next = new Map(prev);
-      next.set(msgId, {
-        ...am,
-        applied: { ...am.applied, mandates: true },
-      });
-      return next;
-    });
-  };
-
-  // Apply mission update (old flow — user confirms)
-  const applyMission = async (msgId: string) => {
-    const am = actionMessages.get(msgId);
-    if (!am?.actions.mission || !user) return;
-
-    await upsertActiveMission(user.id, {
-      goal: am.actions.mission.goal,
-      timeframe: am.actions.mission.timeframe,
-    });
-    logActivity(
-      "mission",
-      `Mission updated via Neural Link: "${am.actions.mission.goal}"`,
-      user.id,
-    );
-
-    setActionMessages((prev) => {
-      const next = new Map(prev);
-      next.set(msgId, {
-        ...am,
-        applied: { ...am.applied, mission: true },
-      });
-      return next;
-    });
   };
 
   const sendMessage = async () => {
@@ -214,6 +152,11 @@ export function AIChat({ integrity }: AIChatProps) {
       const decoder = new TextDecoder();
       let done = false;
       let accumulatedText = "";
+      let hadMutatingAction = false;
+      const mutatingTools = new Set([
+        "create_mandate", "toggle_mandate", "delete_mandate",
+        "edit_mandate", "update_mission", "create_journal_entry",
+      ]);
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
@@ -235,6 +178,20 @@ export function AIChat({ integrity }: AIChatProps) {
                   msg.id === aiMsgId ? { ...msg, text: accumulatedText } : msg,
                 ),
               );
+            } else if (event.type === "tool_result") {
+              // Track mutating tool actions for visual feedback
+              if (mutatingTools.has(event.tool)) {
+                hadMutatingAction = true;
+                setToolActions((prev) => {
+                  const next = new Map(prev);
+                  const existing = next.get(aiMsgId) || [];
+                  next.set(aiMsgId, [
+                    ...existing,
+                    { tool: event.tool, result: event.result },
+                  ]);
+                  return next;
+                });
+              }
             } else if (event.type === "error") {
               accumulatedText += "\n\n⚠️ " + event.content;
               setMessages((prev) =>
@@ -249,9 +206,12 @@ export function AIChat({ integrity }: AIChatProps) {
         }
       }
 
-      // After streaming, extract actions from the AI response (old flow)
-      if (accumulatedText.length > 50) {
-        extractActions(accumulatedText, aiMsgId);
+      // Notify other components if data was mutated
+      if (hadMutatingAction) {
+        notifyDataChange();
+        if (user) {
+          logActivity("ai", "Neural Link executed actions", user.id);
+        }
       }
     } catch (error) {
       console.error("Chat error:", error);
@@ -327,102 +287,44 @@ export function AIChat({ integrity }: AIChatProps) {
                 )}
               </div>
 
-              {/* Action Cards — same as original */}
+              {/* Tool Action Cards — show what the AI did */}
               {msg.sender === "ai" &&
-                actionMessages.has(msg.id) &&
+                toolActions.has(msg.id) &&
                 (() => {
-                  const am = actionMessages.get(msg.id)!;
+                  const actions = toolActions.get(msg.id)!;
+                  const displayActions = actions
+                    .map((a) => ({ ...a, display: getToolDisplay(a) }))
+                    .filter((a) => a.display !== null);
+                  if (displayActions.length === 0) return null;
                   return (
                     <motion.div
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="max-w-[90%] mt-2 space-y-2"
+                      className="max-w-[90%] mt-2 space-y-1.5"
                     >
-                      {am.actions.mandates.length > 0 && (
-                        <div className="border border-accent/20 bg-accent/[0.03] p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-[9px] text-accent/70 font-bold tracking-widest uppercase flex items-center gap-1.5">
-                              <Plus className="w-3 h-3" />
-                              GENERATED MANDATES ({am.actions.mandates.length})
-                            </span>
-                            {!am.applied.mandates ? (
-                              <button
-                                onClick={() => applyMandates(msg.id)}
-                                className="text-[9px] font-bold tracking-wider uppercase bg-accent text-black px-2 py-1 hover:bg-white transition-colors flex items-center gap-1"
-                              >
-                                <Plus className="w-3 h-3" /> Add All
-                              </button>
+                      {displayActions.map((action, i) => {
+                        const d = action.display!;
+                        const Icon = d.icon;
+                        return (
+                          <div
+                            key={i}
+                            className={`flex items-center gap-2 px-3 py-2 border text-[10px] uppercase tracking-widest font-bold ${
+                              d.success
+                                ? "border-accent/30 bg-accent/5 text-accent"
+                                : "border-red-500/30 bg-red-500/5 text-red-400"
+                            }`}
+                          >
+                            {d.success ? (
+                              <Icon className="w-3.5 h-3.5 shrink-0" />
                             ) : (
-                              <span className="text-[9px] font-bold tracking-wider uppercase text-green-400 flex items-center gap-1">
-                                <Check className="w-3 h-3" /> Added
-                              </span>
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                             )}
-                          </div>
-                          <div className="space-y-1">
-                            {am.actions.mandates.map((m, i) => (
-                              <div
-                                key={i}
-                                className="text-xs text-white/80 flex items-start gap-2 py-1 border-t border-white/5 first:border-0"
-                              >
-                                <span
-                                  className={`text-[8px] px-1 py-0.5 rounded uppercase font-bold shrink-0 mt-0.5 ${
-                                    m.category === "physical"
-                                      ? "bg-red-500/20 text-red-400"
-                                      : m.category === "intellectual"
-                                        ? "bg-blue-500/20 text-blue-400"
-                                        : "bg-purple-500/20 text-purple-400"
-                                  }`}
-                                >
-                                  {m.category.slice(0, 4)}
-                                </span>
-                                <div>
-                                  <span className="text-white/90">
-                                    {m.label}
-                                  </span>
-                                  {m.rationale && (
-                                    <span className="text-white/40 ml-1 text-[10px]">
-                                      — {m.rationale}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {am.actions.mission && (
-                        <div className="border border-accent/20 bg-accent/[0.03] p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-[9px] text-accent/70 font-bold tracking-widest uppercase flex items-center gap-1.5">
-                              <Target className="w-3 h-3" />
-                              MISSION UPDATE
+                            <span className="truncate">
+                              {d.message || d.label}
                             </span>
-                            {!am.applied.mission ? (
-                              <button
-                                onClick={() => applyMission(msg.id)}
-                                className="text-[9px] font-bold tracking-wider uppercase bg-accent text-black px-2 py-1 hover:bg-white transition-colors flex items-center gap-1"
-                              >
-                                <Target className="w-3 h-3" /> Apply
-                              </button>
-                            ) : (
-                              <span className="text-[9px] font-bold tracking-wider uppercase text-green-400 flex items-center gap-1">
-                                <Check className="w-3 h-3" /> Applied
-                              </span>
-                            )}
                           </div>
-                          <div className="text-xs space-y-1">
-                            <div className="text-white/80">
-                              <span className="text-accent/50">GOAL:</span>{" "}
-                              {am.actions.mission.goal}
-                            </div>
-                            <div className="text-white/80">
-                              <span className="text-accent/50">TIMEFRAME:</span>{" "}
-                              {am.actions.mission.timeframe}
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                        );
+                      })}
                     </motion.div>
                   );
                 })()}
@@ -438,17 +340,6 @@ export function AIChat({ integrity }: AIChatProps) {
           >
             <Loader2 className="w-3 h-3 animate-spin" />
             Agent processing...
-          </motion.div>
-        )}
-
-        {extractingActions && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex items-center gap-2 text-[10px] text-accent/50 uppercase tracking-widest pl-4"
-          >
-            <Loader2 className="w-3 h-3 animate-spin" />
-            Extracting actionable directives...
           </motion.div>
         )}
 

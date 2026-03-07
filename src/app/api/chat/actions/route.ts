@@ -42,7 +42,7 @@ Rules:
           content: `Extract actions from this AI response:\n\n${aiResponse}`,
         },
       ],
-      model: process.env.GROQ_MODEL_ID || "llama-3.1-8b-instant",
+      model: process.env.GROQ_MODEL_ID || "llama-3.3-70b-versatile",
       temperature: 0.1,
       max_tokens: 512,
     });
