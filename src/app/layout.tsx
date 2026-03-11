@@ -3,6 +3,7 @@ import { Roboto_Mono, Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { AuthProvider } from "@/context/AuthContext";
+import { ToastProvider } from "@/components/ui/CyberToast";
 
 const robotoMono = Roboto_Mono({
   variable: "--font-mono",
@@ -40,8 +41,10 @@ export default function RootLayout({
         className={`${robotoMono.variable} antialiased bg-black text-white min-h-screen`}
       >
         <AuthProvider>
-          {children}
-          <GlobalSearch />
+          <ToastProvider>
+            {children}
+            <GlobalSearch />
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

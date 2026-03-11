@@ -7,6 +7,7 @@ import { Methodology } from "./components/Methodology";
 import { FAQ } from "./components/FAQ";
 import { Pricing } from "./components/Pricing";
 import { ShieldAlert } from "lucide-react";
+import Image from "next/image";
 
 export default function LandingPage() {
   return (
@@ -44,9 +45,16 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between gap-12 relative z-10">
           <div className="space-y-6 max-w-sm">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-accent flex items-center justify-center font-bold text-black text-[10px]">
+              {/* <div className="w-6 h-6 bg-accent flex items-center justify-center font-bold text-black text-[10px]">
                 D
-              </div>
+              </div> */}
+              <Image
+                src="/decaystate.png"
+                alt="DecayState Logo"
+                width={1920}
+                height={1080}
+                className="w-20"
+              />
               <span className="font-display font-black text-xl tracking-tighter uppercase">
                 DECAYSTATE
               </span>

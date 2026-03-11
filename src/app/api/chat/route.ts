@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, history, integrity, userId } = await req.json();
+    const { message, history, integrity, userId, isWeeklyReview } = await req.json();
 
     // Create server-side Supabase client with request cookies for auth/RLS
     const supabase = await createClient();
@@ -14,10 +14,31 @@ export async function POST(req: NextRequest) {
       userId || "anonymous",
       integrity ?? 50,
       supabase,
+      { isWeeklyReview: !!isWeeklyReview },
     );
 
+    // --- RAG: Retrieve relevant journal context ---
+    let enrichedPrompt = systemPrompt;
+    if (userId && userId !== "anonymous") {
+      try {
+        const { retrieveRelevantEntries } = await import(
+          "@/lib/rag/journal-rag"
+        );
+        const ragContext = await retrieveRelevantEntries(userId, message);
+        if (ragContext) {
+          enrichedPrompt = `${systemPrompt}\n\n${ragContext}`;
+        }
+      } catch (error) {
+        // ChromaDB down or embedding failed — continue without RAG context
+        console.warn(
+          "RAG context retrieval failed, continuing without:",
+          error,
+        );
+      }
+    }
+
     // Convert chat history to LangChain message format
-    const messages = convertHistory(history || [], systemPrompt);
+    const messages = convertHistory(history || [], enrichedPrompt);
     messages.push(new HumanMessage(message));
 
     // Stream the agent's response

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Task } from "@/types";
 import {
   Plus,
@@ -14,8 +14,6 @@ import {
   Trash2,
   ChevronDown,
   Target,
-  Lock,
-  Zap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { logActivity } from "@/lib/activityLog";
@@ -28,15 +26,15 @@ import {
   completeMandate,
 } from "@/lib/db/mandates";
 import { getActiveMission } from "@/lib/db/mission";
-import { getSubscription } from "@/lib/db/subscriptions";
-import { getFeatureConfig, isAtLimit } from "@/lib/featureGate";
+import { shouldGenerateDailyMandates } from "@/lib/db/daily-generation";
+import { useToast } from "@/components/ui/CyberToast";
 import type { Mission } from "@/lib/db/mission";
 
 export function Mandates() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tier, setTier] = useState<"observer" | "operator">("observer");
   const [mission, setMission] = useState<Mission | null>(null);
   const [newTask, setNewTask] = useState("");
   const [activeCategory, setActiveCategory] =
@@ -45,20 +43,17 @@ export function Mandates() {
   const [pendingOpen, setPendingOpen] = useState(true);
   const [completedOpen, setCompletedOpen] = useState(true);
 
-  const config = getFeatureConfig(tier);
-  const atLimit = isAtLimit(tasks.length, config.maxMandates);
+  const generatingRef = useRef(false);
 
   useEffect(() => {
     if (!user) return;
     async function load() {
       try {
-        const [fetchedTasks, sub, activeMission] = await Promise.all([
+        const [fetchedTasks, activeMission] = await Promise.all([
           getMandates(user!.id),
-          getSubscription(user!.id),
           getActiveMission(user!.id),
         ]);
         setTasks(fetchedTasks);
-        setTier(sub?.tier ?? "observer");
         setMission(activeMission);
       } catch (e) {
         console.error(e);
@@ -66,7 +61,29 @@ export function Mandates() {
         setLoading(false);
       }
     }
-    load();
+
+    // Load data then check daily generation sequentially
+    load().then(async () => {
+      if (generatingRef.current) return;
+      generatingRef.current = true;
+      try {
+        const shouldGenerate = await shouldGenerateDailyMandates(user!.id);
+        if (!shouldGenerate) return;
+
+        const res = await fetch("/api/mandates/generate", {
+          method: "POST",
+        });
+        const data = await res.json();
+
+        if (data.generated && data.mandates?.length > 0) {
+          const refreshed = await getMandates(user!.id);
+          setTasks(refreshed);
+          showToast(`${data.mandates.length} new daily mandates generated`);
+        }
+      } catch (e) {
+        console.error("Daily mandate generation failed:", e);
+      }
+    });
 
     // Re-fetch when Neural Link AI modifies data
     const handleDataChange = () => { load(); };
@@ -97,7 +114,7 @@ export function Mandates() {
   };
 
   const addTask = async () => {
-    if (!newTask.trim() || !user || atLimit) return;
+    if (!newTask.trim() || !user) return;
     const task = await addMandate(
       user.id,
       {
@@ -226,46 +243,26 @@ export function Mandates() {
         );
       })()}
 
-      {/* Observer limit warning */}
-      {atLimit && (
-        <div className="mx-6 mb-4 border border-white/10 p-3 flex items-center justify-between shrink-0 z-10">
-          <div className="flex items-center gap-2 text-white/40">
-            <Lock className="w-3.5 h-3.5" />
-            <span className="text-[10px] uppercase tracking-widest">
-              Observer limit reached ({config.maxMandates} mandates)
-            </span>
-          </div>
-          <a
-            href="/pricing"
-            className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest font-black text-accent hover:underline"
-          >
-            <Zap className="w-3 h-3" /> Upgrade
-          </a>
-        </div>
-      )}
-
       {/* Input - Command Line Style */}
-      {!atLimit && (
-        <div className="relative group mb-4 shrink-0 z-10 px-6">
-          <div className="flex items-center gap-3 border-b border-white/10 focus-within:border-accent transition-colors pb-2">
-            <Terminal className="w-4 h-4 text-zinc-600 group-focus-within:text-accent" />
-            <input
-              type="text"
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addTask()}
-              placeholder="INPUT_NEW_DIRECTIVE..."
-              className="w-full bg-transparent text-sm font-mono text-white placeholder:text-zinc-700 focus:outline-none uppercase tracking-wide"
-            />
-            <button
-              onClick={addTask}
-              className="text-zinc-600 hover:text-accent transition-colors opacity-0 group-focus-within:opacity-100"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
+      <div className="relative group mb-4 shrink-0 z-10 px-6">
+        <div className="flex items-center gap-3 border-b border-white/10 focus-within:border-accent transition-colors pb-2">
+          <Terminal className="w-4 h-4 text-zinc-600 group-focus-within:text-accent" />
+          <input
+            type="text"
+            value={newTask}
+            onChange={(e) => setNewTask(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addTask()}
+            placeholder="INPUT_NEW_DIRECTIVE..."
+            className="w-full bg-transparent text-sm font-mono text-white placeholder:text-zinc-700 focus:outline-none uppercase tracking-wide"
+          />
+          <button
+            onClick={addTask}
+            className="text-zinc-600 hover:text-accent transition-colors opacity-0 group-focus-within:opacity-100"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Directives List */}
       <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-2 z-10 custom-scrollbar">

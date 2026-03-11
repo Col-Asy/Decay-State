@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Task } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { FutureSelfImage } from "@/components/dashboard/FutureSelfImage";
-import { LogOut, ShieldAlert, ListTodo, BookOpen, RefreshCw } from "lucide-react";
+import { LogOut, ShieldAlert, ListTodo, BookOpen, RefreshCw, Shield } from "lucide-react";
 import { logActivity } from "@/lib/activityLog";
 import { MissionSelector } from "@/components/dashboard/MissionSelector";
 import { LiveSystemLog } from "@/components/dashboard/LiveSystemLog";
@@ -18,10 +18,19 @@ import { getSubscription } from "@/lib/db/subscriptions";
 import type { Mission } from "@/lib/db/mission";
 import type { Subscription } from "@/lib/db/subscriptions";
 import { FutureSelfGallery } from "@/components/dashboard/FutureSelfGallery";
+import {
+  getOrCreateShields,
+  shouldEvaluateShields,
+  getUnseenShieldEvent,
+  markShieldEventSeen,
+  type ShieldState,
+} from "@/lib/db/shields";
+import { useToast } from "@/components/ui/CyberToast";
 
 export default function Dashboard() {
   const router = useRouter();
   const { user, loading: authLoading, signOut } = useAuth();
+  const { showToast } = useToast();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [journalCount, setJournalCount] = useState(0);
@@ -30,6 +39,7 @@ export default function Dashboard() {
   const [dataLoading, setDataLoading] = useState(true);
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [shields, setShields] = useState<ShieldState | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -44,17 +54,19 @@ export default function Dashboard() {
 
     async function loadData() {
       try {
-        const [fetchedTasks, fetchedEntries, activeMission, sub] =
+        const [fetchedTasks, fetchedEntries, activeMission, sub, shieldState] =
           await Promise.all([
             getMandates(user!.id),
             getJournalEntries(user!.id),
             getActiveMission(user!.id),
             getSubscription(user!.id),
+            getOrCreateShields(user!.id),
           ]);
         setTasks(fetchedTasks);
         setJournalCount(fetchedEntries.length);
         setMission(activeMission);
         setSubscription(sub);
+        setShields(shieldState);
 
         if (!sessionStorage.getItem("switch_cc_init")) {
           logActivity("system", "Command Center initialized", user!.id);
@@ -69,6 +81,50 @@ export default function Dashboard() {
 
     loadData();
   }, [user]);
+
+  // Shield evaluation + unseen notification (runs after data loads)
+  useEffect(() => {
+    if (!user || !shields) return;
+
+    async function runShieldTasks() {
+      try {
+        // 1. Evaluate yesterday's mandates if not yet done today
+        const needsEval = await shouldEvaluateShields(user!.id);
+        if (needsEval) {
+          const res = await fetch("/api/shields/evaluate", { method: "POST" });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.evaluated) {
+              setShields((prev) =>
+                prev ? { ...prev, count: data.shields_after } : prev,
+              );
+            }
+          }
+        }
+
+        // 2. Show any pending shield notification
+        const event = await getUnseenShieldEvent(user!.id);
+        if (event) {
+          let msg: string | null = null;
+          if (event.event_type === "lost") {
+            msg =
+              event.shields_after === 0
+                ? `[CRITICAL: ZERO SHIELDS] Protocol failure. Execute with precision.`
+                : `[SHIELD BREACH] Mandate protocol failed. Shields: ${event.shields_after}/3`;
+          } else if (event.event_type === "gained") {
+            msg = `[SHIELD RESTORED] 3-day streak achieved. Shields: ${event.shields_after}/3`;
+          }
+          if (msg) showToast(msg);
+          await markShieldEventSeen(event.id);
+        }
+      } catch (e) {
+        console.error("Shield tasks error:", e);
+      }
+    }
+
+    runShieldTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, shields?.id]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -220,6 +276,7 @@ export default function Dashboard() {
             <div className="absolute inset-0 flex items-center justify-center p-12 z-10">
               <FutureSelfImage
                 integrity={displayIntegrity}
+                shields={shields?.count ?? 3}
                 imageUrl={mission?.image_url ?? avatarUrl}
               />
             </div>
@@ -268,6 +325,26 @@ export default function Dashboard() {
                     VERIFIED
                   </span>
                 </div>
+              </div>
+
+              {/* Shield status row */}
+              <div className="flex items-center gap-3 mt-2">
+                <div className="flex gap-1.5">
+                  {[0, 1, 2].map((i) => (
+                    <Shield
+                      key={i}
+                      className={`w-5 h-5 transition-colors ${
+                        i < (shields?.count ?? 3)
+                          ? "text-accent"
+                          : "text-white/15"
+                      }`}
+                      fill={i < (shields?.count ?? 3) ? "currentColor" : "none"}
+                    />
+                  ))}
+                </div>
+                <span className="text-[9px] text-zinc-500 font-mono uppercase tracking-widest">
+                  {shields?.consecutive_days ?? 0} day streak
+                </span>
               </div>
             </div>
           </div>

@@ -8,7 +8,7 @@ import {
   type BaseMessage,
 } from "@langchain/core/messages";
 import { createAgentTools } from "./tools";
-import { buildSystemPrompt } from "./prompts";
+import { buildSystemPrompt, buildWeeklyReviewPrompt } from "./prompts";
 import type { ChatMessage } from "@/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -20,8 +20,12 @@ export function createNeuralLinkAgent(
   userId: string,
   integrity: number,
   supabase: SupabaseClient,
+  options: { isWeeklyReview?: boolean } = {},
 ) {
   const tools = createAgentTools(userId, supabase);
+  const systemPrompt = options.isWeeklyReview
+    ? buildWeeklyReviewPrompt()
+    : buildSystemPrompt(integrity);
 
   const model = new ChatGroq({
     apiKey: process.env.GROQ_API_KEY,
@@ -84,7 +88,7 @@ export function createNeuralLinkAgent(
 
   const app = graph.compile();
 
-  return { app, systemPrompt: buildSystemPrompt(integrity) };
+  return { app, systemPrompt };
 }
 
 /**

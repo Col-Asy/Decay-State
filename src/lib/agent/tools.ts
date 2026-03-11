@@ -97,16 +97,41 @@ export function createAgentTools(
   const createMandate = tool(
     async (input) => {
       try {
-        // Check Observer mandate limit (5 mandates max)
-        const { count } = await supabase
-          .from("mandates")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", userId);
+        // --- Daily limit: AI chat can only generate 3 mandates per day ---
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
 
-        if (count !== null && count >= 5) {
+        // Get daily-generated mandate IDs to exclude from the count
+        const { data: dailyGens } = await supabase
+          .from("daily_mandate_generations")
+          .select("mandate_ids")
+          .eq("user_id", userId)
+          .gte("created_at", todayStart.toISOString());
+
+        const dailyMandateIds = new Set(
+          (dailyGens || []).flatMap((g: any) => g.mandate_ids || []),
+        );
+
+        // Count only AI-chat mandates created today (exclude daily-generated)
+        const { data: todayMandates, error: countError } = await supabase
+          .from("mandates")
+          .select("id")
+          .eq("user_id", userId)
+          .not("rationale", "is", null)
+          .gte("created_at", todayStart.toISOString());
+
+        if (countError) {
+          return JSON.stringify({ success: false, error: countError.message });
+        }
+
+        const aiChatCount = (todayMandates || []).filter(
+          (m: any) => !dailyMandateIds.has(m.id),
+        ).length;
+
+        if (aiChatCount >= 3) {
           return JSON.stringify({
             success: false,
-            error: "Mandate limit reached (5/5). The user must complete or delete existing mandates before creating new ones. Tell the user this.",
+            error: "Daily AI mandate limit reached (3 per day). The user already has 3 AI-generated mandates today. Try again tomorrow.",
           });
         }
 
@@ -142,6 +167,7 @@ export function createAgentTools(
             id: data.id,
             label: data.label,
             category: data.category,
+            rationale: data.rationale,
           },
         });
       } catch (error) {
@@ -154,7 +180,7 @@ export function createAgentTools(
     {
       name: "create_mandate",
       description:
-        "Creates a single mandate (task) for the user. Call this tool ONCE for EACH mandate you want to create. For example to create 3 mandates, call this tool 3 separate times.",
+        "Creates a single mandate (task) for the user. You can only create up to 3 mandates per day. Call this tool ONCE for EACH mandate you want to create. For example to create 3 mandates, call this tool 3 separate times.",
       schema: z.object({
         label: z
           .string()
@@ -479,6 +505,23 @@ export function createAgentTools(
           return JSON.stringify({ success: false, error: error.message });
         }
 
+        // Embed into ChromaDB for RAG (fire-and-forget, non-blocking)
+        try {
+          const { embedJournalEntry } = await import("@/lib/rag/journal-rag");
+          embedJournalEntry({
+            id: data.id,
+            user_id: userId,
+            date: data.date,
+            wins: input.wins || null,
+            failures: input.failures || null,
+            adjustments: input.adjustments || null,
+          }).catch((err: any) =>
+            console.warn("RAG embed failed for agent-created entry:", err?.message),
+          );
+        } catch {
+          // RAG module not available — skip silently
+        }
+
         return JSON.stringify({
           success: true,
           message: `Journal entry created for ${data.date}`,
@@ -509,6 +552,22 @@ export function createAgentTools(
   const searchJournal = tool(
     async (input) => {
       try {
+        // Try semantic search first via RAG
+        try {
+          const { retrieveRelevantEntries } = await import(
+            "@/lib/rag/journal-rag"
+          );
+          const results = await retrieveRelevantEntries(
+            userId,
+            input.query,
+            5,
+          );
+          if (results) return results;
+        } catch {
+          // RAG unavailable, fall back to keyword search below
+        }
+
+        // Fallback: original keyword search
         const { data, error } = await supabase
           .from("journal_entries")
           .select("*")
