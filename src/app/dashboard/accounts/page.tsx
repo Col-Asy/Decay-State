@@ -203,10 +203,10 @@ export default function AccountsPage() {
     // Fetch profile for username + notification prefs
     const supabase = createClient();
 
-    // Always fetch username + bio (these columns always exist)
+    // Always fetch username + bio + avatar (as fallback)
     supabase
       .from("profiles")
-      .select("username, bio")
+      .select("username, bio, avatar_url")
       .eq("id", user.id)
       .single()
       .then(({ data }) => {
@@ -218,6 +218,9 @@ export default function AccountsPage() {
           "";
         setUsername(handle);
         if (data?.bio) setProfileBio(data.bio);
+        if (data?.avatar_url && !user.user_metadata?.avatar_url) {
+          setAvatarUrl(data.avatar_url);
+        }
       });
 
     // Fetch notification_prefs separately — fails gracefully if column missing

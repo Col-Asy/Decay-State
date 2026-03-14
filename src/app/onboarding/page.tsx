@@ -11,6 +11,8 @@ import { uploadFile } from "@/lib/storage";
 import { logActivity } from "@/lib/activityLog";
 import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
+import { OnboardingChat } from "@/components/onboarding/OnboardingChat";
+import { addOnboardingMandates } from "@/lib/db/onboarding";
 
 export default function Onboarding() {
   const router = useRouter();
@@ -21,11 +23,12 @@ export default function Onboarding() {
   const [timeframe, setTimeframe] = useState("365 days");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationState, setGenerationState] = useState<
-    "idle" | "uploading" | "saving" | "generating" | "complete" | "error"
+    "idle" | "uploading" | "saving" | "chat" | "generating" | "complete" | "error"
   >("idle");
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(
     null,
   );
+  const [savedMissionId, setSavedMissionId] = useState<string | null>(null);
 
   // Image upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -67,10 +70,16 @@ export default function Onboarding() {
 
         // Update user profile with the avatar
         const supabase = createClient();
+        
+        // Update both profiles table and auth metadata (like accounts page does)
+        await supabase.auth.updateUser({ data: { avatar_url: avatarUrl } });
+        
         await supabase
           .from("profiles")
           .update({ avatar_url: avatarUrl })
           .eq("id", user.id);
+          
+        setAvatarUrlState(avatarUrl);
       } catch (err) {
         console.error("Image upload failed:", err);
         // Non-blocking — proceed without image
@@ -86,17 +95,42 @@ export default function Onboarding() {
         timeframe,
         manifesto,
       });
+      setSavedMissionId(savedMission.id);
       logActivity("mission", `Mission initialized: "${goal}"`, user.id);
     }
+    
+    // Transition to Neural Link Chat Step
+    setGenerationState("chat");
+    setStep(3);
+  };
 
+  const handleChatComplete = async (mandates: any[]) => {
+    // Save to DB
+    if (user && savedMissionId && mandates.length > 0) {
+      try {
+        await addOnboardingMandates(user.id, mandates, savedMissionId);
+      } catch (err) {
+        console.error("Failed to save onboarding mandates:", err);
+      }
+    }
+    
+    // Continue to generation
+    await proceedToGeneration();
+  };
+
+  const handleChatSkip = async () => {
+    await proceedToGeneration();
+  };
+
+  const proceedToGeneration = async () => {
     // Trigger future self generation if we have a source image and mission
-    if (avatarUrl && savedMission) {
+    if (avatarUrlState && savedMissionId) {
       setGenerationState("generating");
       try {
         const res = await fetch("/api/generate-future-self", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ missionId: savedMission.id }),
+          body: JSON.stringify({ missionId: savedMissionId }),
         });
         const data = await res.json();
         if (data.success) {
@@ -119,17 +153,20 @@ export default function Onboarding() {
     router.push("/dashboard");
   };
 
+  // We need to keep track of avatarUrl across async boundaries
+  const [avatarUrlState, setAvatarUrlState] = useState<string | null>(null);
+
   const totalSteps =
     generationState === "generating" ||
     generationState === "complete" ||
     generationState === "error"
-      ? 3
-      : 2;
+      ? 4
+      : 3;
   const displayStep =
     generationState === "generating" ||
     generationState === "complete" ||
     generationState === "error"
-      ? 3
+      ? 4
       : step;
 
   return (
@@ -316,6 +353,17 @@ export default function Onboarding() {
               </Button>
             </div>
           </motion.div>
+        )}
+
+        {/* Step 3: Neural Link Chat */}
+        {step === 3 && generationState === "chat" && (
+          <OnboardingChat
+            goal={goal}
+            manifesto={manifesto}
+            timeframe={timeframe}
+            onComplete={handleChatComplete}
+            onSkip={handleChatSkip}
+          />
         )}
 
         {/* Generating screen */}

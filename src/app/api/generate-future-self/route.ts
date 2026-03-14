@@ -115,7 +115,6 @@ export async function POST(req: NextRequest) {
       .from("future-self-images")
       .upload(storagePath, generatedBlob, {
         contentType: "image/png",
-        cacheControl: "31536000",
         upsert: false,
       });
 
