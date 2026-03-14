@@ -1,5 +1,7 @@
 import { getJournalCollection } from "./chromadb";
 import { generateEmbedding } from "./embeddings";
+import { ChatGroq } from "@langchain/groq";
+import { getGroqApiKey, getGroqModelId } from "@/lib/groq-config";
 
 /**
  * Formats a journal entry into a single string for embedding.
@@ -126,4 +128,96 @@ export async function batchEmbedEntries(
   }
 
   return { success, failed };
+}
+
+/**
+ * Summarizes journal entries before injecting them into the context.
+ * This reduces token consumption while preserving key insights.
+ * Uses Groq to extract patterns and key points from multiple entries.
+ */
+export async function summarizeJournalEntries(
+  entriesText: string,
+): Promise<string> {
+  try {
+    const summaryPrompt = `Summarize these journal entries into 3-4 KEY INSIGHTS. Extract:
+- Patterns in wins/failures
+- Recurring challenges or successes
+- Mental/physical state trends
+- Key adjustments made
+
+Keep each insight to 1-2 sentences MAX. Be specific, not generic.
+
+JOURNAL ENTRIES:
+${entriesText}
+
+FORMAT OUTPUT as:
+KEY INSIGHTS:
+- [Insight 1]
+- [Insight 2]
+- [Insight 3]
+- [Insight 4] (if applicable)`;
+
+    const groq = new ChatGroq({
+      apiKey: getGroqApiKey(),
+      model: getGroqModelId(),
+      temperature: 0.3, // Low temp for consistent extraction
+      maxTokens: 200,
+    });
+
+    const summaryResponse = await groq.invoke(summaryPrompt);
+    const summaryText =
+      summaryResponse.content instanceof string
+        ? summaryResponse.content
+        : JSON.stringify(summaryResponse.content);
+
+    return summaryText;
+  } catch (error) {
+    console.error("Failed to summarize journal entries:", error);
+    // Fallback: return truncated original if summarization fails
+    return entriesText.substring(0, 500) + "\n[Summary failed, showing excerpt]";
+  }
+}
+
+/**
+ * Retrieves and summarizes journal entries semantically relevant to a query.
+ * Version 2: Summarizes retrieved entries before context injection.
+ * Returns a formatted context string ready for system prompt injection.
+ * Returns null if no relevant entries found or on error.
+ */
+export async function retrieveAndSummarizeJournalEntries(
+  userId: string,
+  query: string,
+  topK: number = 10, // Get more entries to summarize into key insights
+): Promise<string | null> {
+  const queryEmbedding = await generateEmbedding(query);
+  const collection = await getJournalCollection();
+
+  const results = await collection.query({
+    queryEmbeddings: [queryEmbedding],
+    nResults: topK,
+    where: { user_id: userId },
+    include: ["documents", "distances"],
+  });
+
+  if (!results.documents?.[0]?.length) return null;
+
+  const entries = results.documents[0]
+    .map((doc, i) => {
+      if (!doc) return null;
+      const distance = results.distances?.[0]?.[i];
+      // Filter out low-relevance results (cosine distance > 0.5)
+      if (distance !== undefined && distance !== null && distance > 0.5)
+        return null;
+      return doc;
+    })
+    .filter((doc): doc is string => doc !== null);
+
+  if (entries.length === 0) return null;
+
+  // Summarize the retrieved entries
+  const entriesText = entries.join("\n\n");
+  const summary = await summarizeJournalEntries(entriesText);
+
+  return `RELEVANT PROTOCOL LOG INSIGHTS (auto-summarized from journal entries):
+${summary}`;
 }

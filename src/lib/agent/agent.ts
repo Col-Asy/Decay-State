@@ -9,6 +9,7 @@ import {
 } from "@langchain/core/messages";
 import { createAgentTools } from "./tools";
 import { buildSystemPrompt, buildWeeklyReviewPrompt } from "./prompts";
+import { getGroqApiKey, getGroqModelId } from "@/lib/groq-config";
 import type { ChatMessage } from "@/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -28,8 +29,8 @@ export function createNeuralLinkAgent(
     : buildSystemPrompt(integrity);
 
   const model = new ChatGroq({
-    apiKey: process.env.GROQ_API_KEY,
-    model: process.env.GROQ_MODEL_ID || "llama-3.3-70b-versatile",
+    apiKey: getGroqApiKey(),
+    model: getGroqModelId(),
     temperature: 0.7,
     maxTokens: 2048,
   }).bindTools(tools);
@@ -47,8 +48,8 @@ export function createNeuralLinkAgent(
       if (error?.status === 400 || error?.message?.includes("400")) {
         console.warn("Agent tool call failed, retrying without tools:", error.message);
         const plainModel = new ChatGroq({
-          apiKey: process.env.GROQ_API_KEY,
-          model: process.env.GROQ_MODEL_ID || "llama-3.3-70b-versatile",
+          apiKey: getGroqApiKey(),
+          model: getGroqModelId(),
           temperature: 0.7,
           maxTokens: 2048,
         });

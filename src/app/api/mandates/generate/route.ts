@@ -1,8 +1,9 @@
 import Groq from "groq-sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getGroqApiKey, getGroqModelId } from "@/lib/groq-config";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = new Groq({ apiKey: getGroqApiKey() });
 const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export async function POST(req: NextRequest) {
@@ -171,7 +172,7 @@ Rules:
             "Generate 5 daily mandates for today based on my mission and recent progress.",
         },
       ],
-      model: process.env.GROQ_MODEL_ID || "llama-3.3-70b-versatile",
+      model: getGroqModelId(),
       temperature: 0.3,
       max_tokens: 768,
     });

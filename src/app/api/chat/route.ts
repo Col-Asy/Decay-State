@@ -17,14 +17,14 @@ export async function POST(req: NextRequest) {
       { isWeeklyReview: !!isWeeklyReview },
     );
 
-    // --- RAG: Retrieve relevant journal context ---
+    // --- RAG: Retrieve and summarize relevant journal context ---
     let enrichedPrompt = systemPrompt;
     if (userId && userId !== "anonymous") {
       try {
-        const { retrieveRelevantEntries } = await import(
+        const { retrieveAndSummarizeJournalEntries } = await import(
           "@/lib/rag/journal-rag"
         );
-        const ragContext = await retrieveRelevantEntries(userId, message);
+        const ragContext = await retrieveAndSummarizeJournalEntries(userId, message);
         if (ragContext) {
           enrichedPrompt = `${systemPrompt}\n\n${ragContext}`;
         }
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         try {
           const eventStream = app.streamEvents(
             { messages },
-            { version: "v2", recursionLimit: 10 },
+            { version: "v2", recursionLimit: 50 },
           );
 
           for await (const event of eventStream) {

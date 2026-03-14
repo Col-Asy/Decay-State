@@ -1,8 +1,9 @@
 import Groq from "groq-sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getGroqApiKey, getGroqModelId } from "@/lib/groq-config";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = new Groq({ apiKey: getGroqApiKey() });
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,7 +53,7 @@ Respond with ONLY the summary paragraph. No preamble, no JSON, just the summary.
           content: `Here is the weekly review conversation:\n\n${transcript}`,
         },
       ],
-      model: process.env.GROQ_MODEL_ID || "llama-3.3-70b-versatile",
+      model: getGroqModelId(),
       temperature: 0.3,
       max_tokens: 512,
     });

@@ -22,7 +22,20 @@ export async function shouldShowWeeklyReview(userId: string): Promise<boolean> {
     return false;
   }
 
-  if (!data) return true; // No review yet
+  if (!data) {
+    // If no weekly review exists, check if the first mission is older than 7 days
+    const { data: missionData, error: missionError } = await supabase
+      .from("missions")
+      .select("created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (missionError || !missionData) return false;
+
+    return Date.now() - new Date(missionData.created_at).getTime() >= WEEKLY_REVIEW_COOLDOWN_MS;
+  }
 
   return Date.now() - new Date(data.created_at).getTime() >= WEEKLY_REVIEW_COOLDOWN_MS;
 }

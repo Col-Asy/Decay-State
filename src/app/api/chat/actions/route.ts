@@ -1,7 +1,8 @@
 import Groq from "groq-sdk";
 import { NextRequest, NextResponse } from "next/server";
+import { getGroqApiKey, getGroqModelId } from "@/lib/groq-config";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = new Groq({ apiKey: getGroqApiKey() });
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,7 +43,7 @@ Rules:
           content: `Extract actions from this AI response:\n\n${aiResponse}`,
         },
       ],
-      model: process.env.GROQ_MODEL_ID || "llama-3.3-70b-versatile",
+      model: getGroqModelId(),
       temperature: 0.1,
       max_tokens: 512,
     });

@@ -1,4 +1,5 @@
 import { ChatGroq } from "@langchain/groq";
+import { getGroqApiKey, getGroqModelId } from "@/lib/groq-config";
 
 const PROMPT_SYSTEM = `You are a visual prompt engineer. Given a person's goal, generate a short image editing instruction for an AI image editing model (FLUX Kontext).
 
@@ -27,8 +28,8 @@ export async function generateVisualPrompt(
   manifesto?: string | null,
 ): Promise<string> {
   const model = new ChatGroq({
-    apiKey: process.env.GROQ_API_KEY,
-    model: process.env.GROQ_MODEL_ID || "llama-3.3-70b-versatile",
+    apiKey: getGroqApiKey(),
+    model: getGroqModelId(),
     temperature: 0.8,
     maxTokens: 200,
   });
