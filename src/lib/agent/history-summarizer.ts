@@ -42,12 +42,13 @@ ${oldMessages.map((m) => `${m.sender === "user" ? "User" : "AI"}: ${m.text}`).jo
 
     const summaryResponse = await groq.invoke(summaryPrompt);
     const summaryText =
-      summaryResponse.content instanceof string
+      typeof summaryResponse.content === "string"
         ? summaryResponse.content
         : JSON.stringify(summaryResponse.content);
 
     // Create a synthetic summary message
     const summaryMessage: ChatMessage = {
+      id: `summary-${Date.now()}`,
       sender: "ai",
       text: `[CONVERSATION SUMMARY]\n${summaryText}`,
       timestamp: oldMessages[0]?.timestamp,

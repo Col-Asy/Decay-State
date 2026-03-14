@@ -128,7 +128,7 @@ export default function Dashboard() {
 
   const handleSignOut = async () => {
     await signOut();
-    router.push("/");
+    window.location.href = "/login";
   };
 
   const handleMissionUpdate = (goal: string, timeframe: string) => {

@@ -39,7 +39,11 @@ export default function Onboarding() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) return;
+    if (file.type !== "image/jpeg" && file.type !== "image/jpg") {
+      alert("Only JPG/JPEG images are allowed.");
+      e.target.value = "";
+      return;
+    }
     setSelectedFile(file);
     setPreview(URL.createObjectURL(file));
   };
@@ -194,7 +198,7 @@ export default function Onboarding() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/jpg"
               className="hidden"
               onChange={handleFileSelect}
             />
@@ -230,7 +234,7 @@ export default function Onboarding() {
                   Click to upload photo
                 </span>
                 <span className="text-[10px] text-zinc-600 mt-1">
-                  JPG, PNG, WEBP
+                  JPG / JPEG ONLY
                 </span>
               </button>
             )}

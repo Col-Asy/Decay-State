@@ -166,7 +166,7 @@ KEY INSIGHTS:
 
     const summaryResponse = await groq.invoke(summaryPrompt);
     const summaryText =
-      summaryResponse.content instanceof string
+      typeof summaryResponse.content === "string"
         ? summaryResponse.content
         : JSON.stringify(summaryResponse.content);
 

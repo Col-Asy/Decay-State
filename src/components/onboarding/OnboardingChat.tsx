@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BrainCircuit, Send, Loader2, CheckCircle2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { useAuth } from "@/context/AuthContext";
+import { createConversation, saveMessage } from "@/lib/db/conversations";
 
 interface ChatMessage {
   id: string;
@@ -31,25 +33,33 @@ export function OnboardingChat({ goal, manifesto, timeframe, onComplete, onSkip 
   const [isLoading, setIsLoading] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [generatedMandates, setGeneratedMandates] = useState<Mandate[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasInitialized = useRef(false);
+  const { user } = useAuth();
 
   // Initial trigger
   useEffect(() => {
-    if (hasInitialized.current) return;
+    if (hasInitialized.current || !user) return;
     hasInitialized.current = true;
     
-    // Automatically send an invisible "START" message to trigger the AI's first question
-    sendMessage("START_ONBOARDING", true);
+    // Create an onboarding conversation first
+    createConversation(user.id, { title: "Initial Onboarding Assessment" })
+      .then(conv => {
+        setConversationId(conv.id);
+        // Automatically send an invisible "START" message
+        sendMessage("START_ONBOARDING", true, conv.id);
+      })
+      .catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, generatedMandates]);
 
-  const sendMessage = async (text: string, isInit = false) => {
-    if ((!text.trim() && !isInit) || isLoading || isFinished) return;
+  const sendMessage = async (text: string, isInit = false, convId = conversationId) => {
+    if ((!text.trim() && !isInit) || isLoading || isFinished || !user || !convId) return;
 
     if (!isInit) {
       setMessages((prev) => [
@@ -57,6 +67,9 @@ export function OnboardingChat({ goal, manifesto, timeframe, onComplete, onSkip 
         { id: Date.now().toString(), sender: "user", text }
       ]);
       setInput("");
+      
+      // Async persist to DB
+      saveMessage(convId, user.id, "user", text).catch(console.error);
     }
 
     setIsLoading(true);
@@ -125,6 +138,13 @@ export function OnboardingChat({ goal, manifesto, timeframe, onComplete, onSkip 
           }
         }
       }
+
+      // Async persist AI response to DB
+      if (accumulatedText) {
+        const displayText = accumulatedText.replace(/ONBOARDING_COMPLETE[\s\S]*$/, "").trim();
+        saveMessage(convId, user.id, "ai", displayText).catch(console.error);
+      }
+
     } catch (error) {
       console.error("Chat failure:", error);
       setMessages((prev) => [
