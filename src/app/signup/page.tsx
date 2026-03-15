@@ -8,11 +8,15 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { SiGoogle } from "react-icons/si";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SignupPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { signInWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -57,6 +61,17 @@ export default function SignupPage() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    setGoogleLoading(true);
+    setError("");
+    try {
+      await signInWithGoogle();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+      setGoogleLoading(false);
     }
   };
 
@@ -190,12 +205,32 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              <div className="pt-1">
+              <div className="pt-1 space-y-3">
                 <Button
                   className="w-full bg-accent text-black hover:bg-accent/90 border-accent h-12 text-xs tracking-[0.2em] font-black"
-                  disabled={loading}
+                  disabled={loading || googleLoading}
+                  type="submit"
                 >
                   {loading ? "PROCESSING..." : "ACTIVATE PROTOCOL"}
+                </Button>
+
+                <div className="relative flex items-center py-2">
+                  <div className="grow border-t border-white/10"></div>
+                  <span className="shrink-0 mx-4 text-white/40 text-[10px] uppercase tracking-widest">
+                    Or
+                  </span>
+                  <div className="grow border-t border-white/10"></div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleGoogleSignup}
+                  disabled={loading || googleLoading}
+                  className="w-full border border-white/20 hover:bg-white/5 text-white h-12 text-xs tracking-[0.2em] font-black flex items-center justify-center gap-2 transition-colors"
+                >
+                  <SiGoogle className="w-4 h-4" />
+                  {googleLoading ? "PROCESSING..." : "CONTINUE WITH GOOGLE"}
                 </Button>
               </div>
 

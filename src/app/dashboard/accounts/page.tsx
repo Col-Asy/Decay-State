@@ -148,12 +148,14 @@ const categories = [
 
 export default function AccountsPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [integrations, setIntegrations] = useState<Integration[]>(INTEGRATIONS);
   const [activeFilter, setActiveFilter] = useState("all");
   const [connectingId, setConnectingId] = useState<string | null>(null);
+  
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Profile state — seeded from Supabase user
   const [profileName, setProfileName] = useState("");
@@ -332,6 +334,30 @@ export default function AccountsPage() {
       );
       setConnectingId(null);
     }, 2000);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!confirm("WARNING: This will permanently delete your account, missions, and all associated data. This action cannot be undone. Are you sure?")) {
+      return;
+    }
+    
+    setIsDeleting(true);
+    try {
+      const response = await fetch("/api/auth/delete", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete account");
+      }
+
+      await signOut();
+      router.push("/login");
+    } catch (error) {
+      console.error(error);
+      alert("An error occurred while deleting your account.");
+      setIsDeleting(false);
+    }
   };
 
   const filtered =
@@ -748,18 +774,17 @@ export default function AccountsPage() {
                 Sever All Connections
               </div>
               <div className="text-[10px] text-zinc-500 font-mono">
-                Disconnect all linked integrations and reset account data
+                Permanently delete your account and wipe all operator data
               </div>
             </div>
             <button
-              onClick={() =>
-                setIntegrations(
-                  INTEGRATIONS.map((i) => ({ ...i, connected: false })),
-                )
-              }
-              className="text-[9px] uppercase tracking-widest font-bold text-red-500 border border-red-500/30 hover:bg-red-500 hover:text-white px-4 py-2 transition-all"
+              onClick={handleDeleteAccount}
+              disabled={isDeleting}
+              className={`text-[9px] uppercase tracking-widest font-bold text-red-500 border border-red-500/30 hover:bg-red-500 hover:text-white px-4 py-2 transition-all ${
+                isDeleting ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
-              Reset Protocol
+              {isDeleting ? "WIPING..." : "Reset Protocol"}
             </button>
           </div>
         </div>
