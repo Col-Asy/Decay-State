@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const next = requestUrl.searchParams.get("next") ?? "/dashboard";
+  // Default to dashboard, but we'll override if it's a new user
+  let next = requestUrl.searchParams.get("next") ?? "/dashboard";
 
   if (code) {
     const supabase = await createClient();
@@ -12,6 +13,10 @@ export async function GET(request: NextRequest) {
 
     if (!error && session?.user) {
       const user = session.user;
+      
+      // Determine if this is a brand new user. 
+      // We can check if created_at is very close to now, but simpler is to check our profiles table later.
+      let isNewUser = false;
       
       // Handle Google OAuth metadata sync
       if (user.app_metadata?.provider === "google") {
@@ -49,7 +54,8 @@ export async function GET(request: NextRequest) {
             })
             .eq("id", user.id);
         } else {
-            // If the trigger missed them somehow
+            // If the trigger missed them somehow or it's a genuinely new profile
+            isNewUser = true;
             await supabase
             .from("profiles")
             .insert([{
@@ -59,6 +65,20 @@ export async function GET(request: NextRequest) {
                 avatar_url: avatarUrl
             }]);
         }
+      }
+      
+      // Also check the user object itself to see if they just signed up
+      if (!isNewUser && user.created_at) {
+        // If created within the last 10 seconds, consider them new
+        const createdDate = new Date(user.created_at);
+        const now = new Date();
+        if (now.getTime() - createdDate.getTime() < 10000) {
+            isNewUser = true;
+        }
+      }
+
+      if (isNewUser) {
+        next = "/onboarding";
       }
     }
   }
