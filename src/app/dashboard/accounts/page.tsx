@@ -13,6 +13,7 @@ import {
   Zap,
   Loader2,
   ArrowUpRight,
+  RefreshCw,
 } from "lucide-react";
 import { getSubscription } from "@/lib/db/subscriptions";
 import {
@@ -30,6 +31,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { type IconType } from "react-icons";
 import Image from "next/image";
+import { FutureSelfGallery } from "@/components/dashboard/FutureSelfGallery";
+import { getActiveMission } from "@/lib/db/mission";
+import type { Mission } from "@/lib/db/mission";
 
 interface Integration {
   id: string;
@@ -176,6 +180,11 @@ export default function AccountsPage() {
   const [username, setUsername] = useState("");
   const [tier, setTier] = useState<"observer" | "operator">("observer");
 
+  // Future self generation
+  const [activeMission, setActiveMission] = useState<Mission | null>(null);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [showGeneratePrompt, setShowGeneratePrompt] = useState(false);
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
@@ -194,10 +203,10 @@ export default function AccountsPage() {
     // Fetch profile for username + notification prefs
     const supabase = createClient();
 
-    // Always fetch username + bio (these columns always exist)
+    // Always fetch username + bio + avatar (as fallback)
     supabase
       .from("profiles")
-      .select("username, bio")
+      .select("username, bio, avatar_url")
       .eq("id", user.id)
       .single()
       .then(({ data }) => {
@@ -209,6 +218,9 @@ export default function AccountsPage() {
           "";
         setUsername(handle);
         if (data?.bio) setProfileBio(data.bio);
+        if (data?.avatar_url && !user.user_metadata?.avatar_url) {
+          setAvatarUrl(data.avatar_url);
+        }
       });
 
     // Fetch notification_prefs separately — fails gracefully if column missing
@@ -225,6 +237,9 @@ export default function AccountsPage() {
         setNotifWeekly(prefs.weekly ?? false);
         setNotifDecay(prefs.decay ?? true);
       });
+
+    // Fetch active mission for future self generation
+    getActiveMission(user.id).then((m) => setActiveMission(m));
   }, [user, authLoading, router]);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -240,6 +255,10 @@ export default function AccountsPage() {
         .update({ avatar_url: url })
         .eq("id", user.id);
       setAvatarUrl(url);
+      // Show generate prompt if user has an active mission
+      if (activeMission) {
+        setShowGeneratePrompt(true);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -444,6 +463,44 @@ export default function AccountsPage() {
                 </div>
               </div>
             </div>
+
+            {/* Future Self Generation Prompt */}
+            <AnimatePresence>
+              {showGeneratePrompt && activeMission && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="border border-accent/30 bg-accent/5 p-4 flex items-center justify-between">
+                    <div>
+                      <div className="text-xs text-white font-bold uppercase tracking-tight">
+                        New Source Image Detected
+                      </div>
+                      <div className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                        Generate an updated future self projection based on your mission
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setGalleryOpen(true)}
+                        className="text-[9px] uppercase tracking-widest font-bold text-black bg-accent hover:bg-accent/80 px-4 py-2 transition-colors flex items-center gap-2"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Generate Projection
+                      </button>
+                      <button
+                        onClick={() => setShowGeneratePrompt(false)}
+                        className="text-[9px] uppercase tracking-widest text-zinc-500 hover:text-white px-2 py-2 transition-colors"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Editable Fields Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -707,6 +764,19 @@ export default function AccountsPage() {
           </div>
         </div>
       </div>
+
+      {/* Future Self Gallery Modal */}
+      {activeMission?.id && (
+        <FutureSelfGallery
+          missionId={activeMission.id}
+          isOpen={galleryOpen}
+          onClose={() => setGalleryOpen(false)}
+          onImageChange={() => {
+            setGalleryOpen(false);
+            setShowGeneratePrompt(false);
+          }}
+        />
+      )}
     </div>
   );
 }

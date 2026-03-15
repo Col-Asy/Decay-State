@@ -59,3 +59,88 @@ export async function deleteConversation(id: string): Promise<void> {
   const { error } = await supabase.from("conversations").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
+
+/**
+ * Get today's existing conversation for a user, or create a new one.
+ * Excludes weekly review sessions from the lookup.
+ */
+export async function getOrCreateConversation(
+  userId: string,
+  title?: string,
+): Promise<Conversation> {
+  const supabase = createClient();
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const { data: existing } = await supabase
+    .from("conversations")
+    .select("*")
+    .eq("user_id", userId)
+    .gte("created_at", todayStart.toISOString())
+    .not("title", "ilike", "Weekly Review%")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) return existing as Conversation;
+
+  const dateLabel = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return createConversation(userId, { title: title || `Session — ${dateLabel}` });
+}
+
+/**
+ * Persist a single message to the ai_chats table.
+ */
+export async function saveMessage(
+  conversationId: string,
+  userId: string,
+  sender: "user" | "ai",
+  text: string,
+): Promise<void> {
+  const supabase = createClient();
+  await supabase.from("ai_chats").insert({
+    conversation_id: conversationId,
+    user_id: userId,
+    sender,
+    text,
+  });
+}
+
+/**
+ * Load all messages in a conversation ordered oldest-first.
+ */
+export async function getConversationMessages(
+  conversationId: string,
+): Promise<Array<{ id: string; sender: "user" | "ai"; text: string; created_at: string }>> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("ai_chats")
+    .select("id, sender, text, created_at")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(`Failed to load messages: ${error.message}`);
+  return (data || []) as Array<{ id: string; sender: "user" | "ai"; text: string; created_at: string }>;
+}
+
+/**
+ * Get N most recent conversations for a user (for history navigation).
+ */
+export async function getRecentConversations(
+  userId: string,
+  limit = 10,
+): Promise<Conversation[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("conversations")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(`Failed to load conversations: ${error.message}`);
+  return (data || []) as Conversation[];
+}

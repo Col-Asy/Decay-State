@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
  * @returns Public URL (for avatars) or signed URL (for mission-images)
  */
 export async function uploadFile(
-  bucket: "avatars" | "mission-images" | "journal-images",
+  bucket: "avatars" | "mission-images" | "journal-images" | "future-self-images",
   userId: string,
   file: File,
 ): Promise<string> {
@@ -25,7 +25,7 @@ export async function uploadFile(
 
   if (error) throw new Error(error.message);
 
-  if (bucket === "avatars" || bucket === "journal-images") {
+  if (bucket === "avatars" || bucket === "journal-images" || bucket === "future-self-images") {
     // public buckets — return permanent public URL
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
     return data.publicUrl;
@@ -43,7 +43,7 @@ export async function uploadFile(
  * Delete a file from Supabase Storage given its full storage path.
  */
 export async function deleteFile(
-  bucket: "avatars" | "mission-images" | "journal-images",
+  bucket: "avatars" | "mission-images" | "journal-images" | "future-self-images",
   path: string,
 ): Promise<void> {
   const supabase = createClient();

@@ -4,13 +4,15 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Upload, X, ImageIcon, Target, FileText, Clock } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { upsertActiveMission } from "@/lib/db/mission";
 import { uploadFile } from "@/lib/storage";
 import { logActivity } from "@/lib/activityLog";
+import { createClient } from "@/lib/supabase/client";
 import Image from "next/image";
+import { OnboardingChat } from "@/components/onboarding/OnboardingChat";
+import { addOnboardingMandates } from "@/lib/db/onboarding";
 
 export default function Onboarding() {
   const router = useRouter();
@@ -20,6 +22,13 @@ export default function Onboarding() {
   const [manifesto, setManifesto] = useState("");
   const [timeframe, setTimeframe] = useState("365 days");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationState, setGenerationState] = useState<
+    "idle" | "uploading" | "saving" | "chat" | "generating" | "complete" | "error"
+  >("idle");
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(
+    null,
+  );
+  const [savedMissionId, setSavedMissionId] = useState<string | null>(null);
 
   // Image upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -30,7 +39,11 @@ export default function Onboarding() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) return;
+    if (file.type !== "image/jpeg" && file.type !== "image/jpg") {
+      alert("Only JPG/JPEG images are allowed.");
+      e.target.value = "";
+      return;
+    }
     setSelectedFile(file);
     setPreview(URL.createObjectURL(file));
   };
@@ -51,42 +64,120 @@ export default function Onboarding() {
     if (!goal.trim()) return;
     setIsGenerating(true);
 
-    let imageUrl: string | undefined;
+    let avatarUrl: string | undefined;
 
-    // Upload the image if one was selected
+    // Upload the image to avatars bucket (public, permanent URL)
     if (selectedFile && user) {
-      setUploading(true);
+      setGenerationState("uploading");
       try {
-        imageUrl = await uploadFile("mission-images", user.id, selectedFile);
+        avatarUrl = await uploadFile("avatars", user.id, selectedFile);
+
+        // Update user profile with the avatar
+        const supabase = createClient();
+        
+        // Update both profiles table and auth metadata (like accounts page does)
+        await supabase.auth.updateUser({ data: { avatar_url: avatarUrl } });
+        
+        await supabase
+          .from("profiles")
+          .update({ avatar_url: avatarUrl })
+          .eq("id", user.id);
+          
+        setAvatarUrlState(avatarUrl);
       } catch (err) {
         console.error("Image upload failed:", err);
         // Non-blocking — proceed without image
-      } finally {
-        setUploading(false);
       }
     }
 
-    // Simulate "projection generation" delay for UX
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
+    // Save mission to database
+    setGenerationState("saving");
+    let savedMission;
     if (user) {
-      await upsertActiveMission(user.id, {
+      savedMission = await upsertActiveMission(user.id, {
         goal,
         timeframe,
         manifesto,
-        image_url: imageUrl,
       });
+      setSavedMissionId(savedMission.id);
       logActivity("mission", `Mission initialized: "${goal}"`, user.id);
     }
+    
+    // Transition to Neural Link Chat Step
+    setGenerationState("chat");
+    setStep(3);
+  };
 
+  const handleChatComplete = async (mandates: any[]) => {
+    // Save to DB
+    if (user && savedMissionId && mandates.length > 0) {
+      try {
+        await addOnboardingMandates(user.id, mandates, savedMissionId);
+      } catch (err) {
+        console.error("Failed to save onboarding mandates:", err);
+      }
+    }
+    
+    // Continue to generation
+    await proceedToGeneration();
+  };
+
+  const handleChatSkip = async () => {
+    await proceedToGeneration();
+  };
+
+  const proceedToGeneration = async () => {
+    // Trigger future self generation if we have a source image and mission
+    if (avatarUrlState && savedMissionId) {
+      setGenerationState("generating");
+      try {
+        const res = await fetch("/api/generate-future-self", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ missionId: savedMissionId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setGeneratedImageUrl(data.image.imageUrl);
+          setGenerationState("complete");
+          return; // Don't auto-redirect, wait for user action
+        } else {
+          console.error("Generation failed:", data.error);
+          setGenerationState("error");
+          return;
+        }
+      } catch (err) {
+        console.error("Generation request failed:", err);
+        setGenerationState("error");
+        return;
+      }
+    }
+
+    // No image uploaded — skip generation, go to dashboard
     router.push("/dashboard");
   };
+
+  // We need to keep track of avatarUrl across async boundaries
+  const [avatarUrlState, setAvatarUrlState] = useState<string | null>(null);
+
+  const totalSteps =
+    generationState === "generating" ||
+    generationState === "complete" ||
+    generationState === "error"
+      ? 4
+      : 3;
+  const displayStep =
+    generationState === "generating" ||
+    generationState === "complete" ||
+    generationState === "error"
+      ? 4
+      : step;
 
   return (
     <div className="h-screen w-full bg-black flex flex-col items-center justify-center p-8">
       <AnimatePresence mode="wait">
         {/* Step 1: Image upload */}
-        {step === 1 && (
+        {step === 1 && !isGenerating && (
           <motion.div
             key="step1"
             initial={{ opacity: 0, x: 20 }}
@@ -107,7 +198,7 @@ export default function Onboarding() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/jpg"
               className="hidden"
               onChange={handleFileSelect}
             />
@@ -143,7 +234,7 @@ export default function Onboarding() {
                   Click to upload photo
                 </span>
                 <span className="text-[10px] text-zinc-600 mt-1">
-                  JPG, PNG, WEBP
+                  JPG / JPEG ONLY
                 </span>
               </button>
             )}
@@ -268,27 +359,124 @@ export default function Onboarding() {
           </motion.div>
         )}
 
+        {/* Step 3: Neural Link Chat */}
+        {step === 3 && generationState === "chat" && (
+          <OnboardingChat
+            goal={goal}
+            manifesto={manifesto}
+            timeframe={timeframe}
+            onComplete={handleChatComplete}
+            onSkip={handleChatSkip}
+          />
+        )}
+
         {/* Generating screen */}
-        {isGenerating && (
+        {isGenerating &&
+          (generationState === "uploading" ||
+            generationState === "saving" ||
+            generationState === "generating" ||
+            generationState === "idle") && (
+            <motion.div
+              key="generating"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center space-y-4"
+            >
+              <div className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="font-mono text-sm uppercase animate-pulse">
+                {generationState === "uploading"
+                  ? "Uploading Source Image..."
+                  : generationState === "saving"
+                    ? "Saving Mission Parameters..."
+                    : "Constructing Future Self..."}
+              </p>
+              <p className="font-mono text-xs text-zinc-600">
+                {generationState === "generating"
+                  ? "AI is projecting your target state. This may take 15-30 seconds."
+                  : "Aligning probability vectors."}
+              </p>
+              {generationState === "generating" && (
+                <div className="flex justify-center gap-1 mt-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="w-2 h-2 bg-accent/30 rounded-full animate-pulse"
+                      style={{ animationDelay: `${i * 200}ms` }}
+                    />
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+        {/* Generation complete - reveal */}
+        {generationState === "complete" && generatedImageUrl && (
           <motion.div
-            key="generating"
+            key="reveal"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center space-y-6 max-w-md"
+          >
+            <div className="text-accent text-[10px] tracking-[0.3em] uppercase font-bold">
+              Projection Complete
+            </div>
+            <div className="relative w-64 h-64 mx-auto border-2 border-accent/50 overflow-hidden">
+              <Image
+                src={generatedImageUrl}
+                alt="Your Future Self"
+                fill
+                className="object-cover"
+              />
+              {/* Corner decorations */}
+              <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-accent" />
+              <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-accent" />
+              <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-accent" />
+              <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-accent" />
+            </div>
+            <p className="font-mono text-xs text-zinc-400 uppercase tracking-wider">
+              This is the version of you that completes the mission.
+            </p>
+            <p className="font-mono text-[10px] text-zinc-600">
+              You can regenerate up to 2 more times from the dashboard.
+            </p>
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="bg-accent text-black px-8 py-3 font-bold uppercase tracking-widest text-xs hover:bg-white transition-colors"
+            >
+              Enter Command Center
+            </button>
+          </motion.div>
+        )}
+
+        {/* Generation error - proceed anyway */}
+        {generationState === "error" && (
+          <motion.div
+            key="error"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center space-y-4"
+            className="text-center space-y-4 max-w-md"
           >
-            <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="font-mono text-sm uppercase animate-pulse">
-              Constructing Future Self...
+            <div className="text-zinc-500 text-[10px] tracking-[0.3em] uppercase font-bold">
+              Projection Failed
+            </div>
+            <p className="font-mono text-sm text-zinc-400 uppercase">
+              Future self projection could not be generated at this time.
             </p>
-            <p className="font-mono text-xs text-zinc-600">
-              Aligning probability vectors.
+            <p className="font-mono text-[10px] text-zinc-600">
+              You can retry from the dashboard using the Projections panel.
             </p>
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="bg-white text-black px-6 py-2 font-bold uppercase tracking-widest text-xs hover:bg-accent transition-colors"
+            >
+              Continue to Dashboard
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
 
       <div className="absolute bottom-8 text-zinc-800 font-mono text-xs">
-        SCENARIO: {step}/2
+        SCENARIO: {displayStep}/{totalSteps}
       </div>
     </div>
   );

@@ -356,8 +356,90 @@ create policy "journal-images: delete own"
 
 
 -- =============================================================
+-- SECTION 9: DAILY MANDATE GENERATION TRACKING
+-- =============================================================
+
+-- Tracks when daily AI-generated mandates were last created per user
+create table public.daily_mandate_generations (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references public.profiles(id) on delete cascade,
+  mission_id  uuid references public.missions(id) on delete set null,
+  mandate_ids uuid[] not null default '{}',
+  created_at  timestamptz default now()
+);
+
+alter table public.daily_mandate_generations enable row level security;
+
+create policy "daily_mandate_generations: own data"
+  on public.daily_mandate_generations for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+
+-- =============================================================
+-- SECTION 10: WEEKLY REVIEWS
+-- =============================================================
+
+-- Stores AI-generated summaries of weekly review conversations
+create table public.weekly_reviews (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid not null references public.profiles(id) on delete cascade,
+  conversation_id uuid references public.conversations(id) on delete set null,
+  summary         text not null,
+  week_start      timestamptz not null,
+  created_at      timestamptz default now()
+);
+
+alter table public.weekly_reviews enable row level security;
+
+create policy "weekly_reviews: own data"
+  on public.weekly_reviews for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- Indexes for fast chat history loading
+create index ai_chats_conversation_id_idx on public.ai_chats(conversation_id);
+create index ai_chats_user_created_idx on public.ai_chats(user_id, created_at desc);
+
+
+-- =============================================================
+-- SECTION 11: SHIELD SYSTEM
+-- =============================================================
+
+-- shields: one row per user — persistent accountability layer
+create table public.shields (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid not null unique references public.profiles(id) on delete cascade,
+  count             integer not null default 3 check (count >= 0 and count <= 3),
+  consecutive_days  integer not null default 0,
+  last_evaluated_at timestamptz,
+  created_at        timestamptz default now(),
+  updated_at        timestamptz default now()
+);
+alter table public.shields enable row level security;
+create policy "shields: own data" on public.shields
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- shield_events: log of each daily evaluation result (used for toast notifications)
+create table public.shield_events (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid not null references public.profiles(id) on delete cascade,
+  event_type     text not null check (event_type in ('lost', 'gained', 'perfect_day', 'no_mandates')),
+  shields_after  integer not null,
+  evaluated_for  date not null,
+  seen           boolean not null default false,
+  created_at     timestamptz default now()
+);
+alter table public.shield_events enable row level security;
+create policy "shield_events: own data" on public.shield_events
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+
+-- =============================================================
 -- DONE
 -- Tables:  profiles, missions, mandates, journal_entries,
---          conversations, ai_chats, activity_log, subscriptions
--- Buckets: avatars, mission-images, journal-images
+--          conversations, ai_chats, activity_log, subscriptions,
+--          future_self_images, daily_mandate_generations,
+--          weekly_reviews, shields, shield_events
+-- Buckets: avatars, mission-images, journal-images, future-self-images
 -- =============================================================

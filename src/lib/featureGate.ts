@@ -13,7 +13,7 @@ export type FeatureConfig = {
 };
 
 const OBSERVER: FeatureConfig = {
-  maxMandates: 5,
+  maxMandates: Infinity,
   maxJournal: 10,
   maxGoals: 1,
   maxConversations: 3,

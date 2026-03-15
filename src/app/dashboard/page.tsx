@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Task } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { FutureSelfImage } from "@/components/dashboard/FutureSelfImage";
-import { LogOut, ShieldAlert, ListTodo, BookOpen } from "lucide-react";
+import { LogOut, ShieldAlert, ListTodo, BookOpen, RefreshCw, Shield } from "lucide-react";
 import { logActivity } from "@/lib/activityLog";
 import { MissionSelector } from "@/components/dashboard/MissionSelector";
 import { LiveSystemLog } from "@/components/dashboard/LiveSystemLog";
@@ -17,10 +17,20 @@ import { getActiveMission } from "@/lib/db/mission";
 import { getSubscription } from "@/lib/db/subscriptions";
 import type { Mission } from "@/lib/db/mission";
 import type { Subscription } from "@/lib/db/subscriptions";
+import { FutureSelfGallery } from "@/components/dashboard/FutureSelfGallery";
+import {
+  getOrCreateShields,
+  shouldEvaluateShields,
+  getUnseenShieldEvent,
+  markShieldEventSeen,
+  type ShieldState,
+} from "@/lib/db/shields";
+import { useToast } from "@/components/ui/CyberToast";
 
 export default function Dashboard() {
   const router = useRouter();
   const { user, loading: authLoading, signOut } = useAuth();
+  const { showToast } = useToast();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [journalCount, setJournalCount] = useState(0);
@@ -28,6 +38,8 @@ export default function Dashboard() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [navigatingTo, setNavigatingTo] = useState<string | null>(null);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [shields, setShields] = useState<ShieldState | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -42,17 +54,19 @@ export default function Dashboard() {
 
     async function loadData() {
       try {
-        const [fetchedTasks, fetchedEntries, activeMission, sub] =
+        const [fetchedTasks, fetchedEntries, activeMission, sub, shieldState] =
           await Promise.all([
             getMandates(user!.id),
             getJournalEntries(user!.id),
             getActiveMission(user!.id),
             getSubscription(user!.id),
+            getOrCreateShields(user!.id),
           ]);
         setTasks(fetchedTasks);
         setJournalCount(fetchedEntries.length);
         setMission(activeMission);
         setSubscription(sub);
+        setShields(shieldState);
 
         if (!sessionStorage.getItem("switch_cc_init")) {
           logActivity("system", "Command Center initialized", user!.id);
@@ -68,15 +82,65 @@ export default function Dashboard() {
     loadData();
   }, [user]);
 
+  // Shield evaluation + unseen notification (runs after data loads)
+  useEffect(() => {
+    if (!user || !shields) return;
+
+    async function runShieldTasks() {
+      try {
+        // 1. Evaluate yesterday's mandates if not yet done today
+        const needsEval = await shouldEvaluateShields(user!.id);
+        if (needsEval) {
+          const res = await fetch("/api/shields/evaluate", { method: "POST" });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.evaluated) {
+              setShields((prev) =>
+                prev ? { ...prev, count: data.shields_after } : prev,
+              );
+            }
+          }
+        }
+
+        // 2. Show any pending shield notification
+        const event = await getUnseenShieldEvent(user!.id);
+        if (event) {
+          let msg: string | null = null;
+          if (event.event_type === "lost") {
+            msg =
+              event.shields_after === 0
+                ? `[CRITICAL: ZERO SHIELDS] Protocol failure. Execute with precision.`
+                : `[SHIELD BREACH] Mandate protocol failed. Shields: ${event.shields_after}/3`;
+          } else if (event.event_type === "gained") {
+            msg = `[SHIELD RESTORED] 3-day streak achieved. Shields: ${event.shields_after}/3`;
+          }
+          if (msg) showToast(msg);
+          await markShieldEventSeen(event.id);
+        }
+      } catch (e) {
+        console.error("Shield tasks error:", e);
+      }
+    }
+
+    runShieldTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, shields?.id]);
+
   const handleSignOut = async () => {
     await signOut();
-    router.push("/");
+    window.location.href = "/login";
   };
 
   const handleMissionUpdate = (goal: string, timeframe: string) => {
     if (mission) {
       setMission({ ...mission, goal, timeframe });
     }
+  };
+
+  const refreshMission = async () => {
+    if (!user) return;
+    const activeMission = await getActiveMission(user.id);
+    setMission(activeMission);
   };
 
   const handleCardNavigation = (route: string) => {
@@ -212,9 +276,21 @@ export default function Dashboard() {
             <div className="absolute inset-0 flex items-center justify-center p-12 z-10">
               <FutureSelfImage
                 integrity={displayIntegrity}
-                imageUrl={avatarUrl}
+                shields={shields?.count ?? 3}
+                imageUrl={mission?.image_url ?? avatarUrl}
               />
             </div>
+
+            {/* Projections Gallery Button */}
+            {mission?.id && (
+              <button
+                onClick={() => setGalleryOpen(true)}
+                className="absolute top-14 left-4 z-30 text-[9px] text-zinc-500 hover:text-accent font-mono tracking-widest uppercase border border-white/10 hover:border-accent/30 px-2 py-1 bg-black/50 backdrop-blur-sm transition-all flex items-center gap-1"
+              >
+                <RefreshCw className="w-3 h-3" />
+                Projections
+              </button>
+            )}
 
             {/* Integrity Bar */}
             <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/80 to-transparent z-30 flex flex-col gap-4 border-t border-white/5">
@@ -249,6 +325,26 @@ export default function Dashboard() {
                     VERIFIED
                   </span>
                 </div>
+              </div>
+
+              {/* Shield status row */}
+              <div className="flex items-center gap-3 mt-2">
+                <div className="flex gap-1.5">
+                  {[0, 1, 2].map((i) => (
+                    <Shield
+                      key={i}
+                      className={`w-5 h-5 transition-colors ${
+                        i < (shields?.count ?? 3)
+                          ? "text-accent"
+                          : "text-white/15"
+                      }`}
+                      fill={i < (shields?.count ?? 3) ? "currentColor" : "none"}
+                    />
+                  ))}
+                </div>
+                <span className="text-[9px] text-zinc-500 font-mono uppercase tracking-widest">
+                  {shields?.consecutive_days ?? 0} day streak
+                </span>
               </div>
             </div>
           </div>
@@ -356,6 +452,19 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Projections Gallery Modal */}
+      {mission?.id && (
+        <FutureSelfGallery
+          missionId={mission.id}
+          isOpen={galleryOpen}
+          onClose={() => setGalleryOpen(false)}
+          onImageChange={() => {
+            setGalleryOpen(false);
+            refreshMission();
+          }}
+        />
+      )}
     </div>
   );
 }

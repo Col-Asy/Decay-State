@@ -38,14 +38,22 @@ export default function SignupPage() {
     setError("");
 
     try {
-      const { error: authError } = await supabase.auth.signUp({
+      const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { name, username } },
       });
       if (authError) throw authError;
+
+      if (data.user && !data.session) {
+        setError("Please check your email for the confirmation link.");
+        setLoading(false);
+        return;
+      }
+
       // Profile row auto-created by Supabase trigger
-      router.push("/onboarding");
+      // Force full page navigation to ensure cookies are sent through middleware
+      window.location.href = "/onboarding";
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
       setLoading(false);

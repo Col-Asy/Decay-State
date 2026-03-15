@@ -81,6 +81,21 @@ export function Journal() {
         imageUrl,
       });
       setEntries((prev) => [entry, ...prev]);
+
+      // Fire-and-forget: embed the new entry into ChromaDB for RAG
+      fetch("/api/rag/embed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: entry.id,
+          user_id: user.id,
+          date: entry.date,
+          wins,
+          failures,
+          adjustments,
+        }),
+      }).catch(() => {}); // Silent fail — embedding is non-critical
+
       logActivity(
         "journal",
         `Entry logged — ${wins ? "wins recorded" : "no wins"}, ${failures ? "failures noted" : "no failures"}`,
