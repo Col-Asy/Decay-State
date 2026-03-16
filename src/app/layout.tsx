@@ -23,8 +23,44 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.decaystate.com"),
   title: "DecayState",
-  description: "Manifest your future or watch it fade.",
+  description:
+    "Manifest your future or watch it fade. Execute 80% of your daily protocol, or physically watch your ambition decay. Strict AI. No Excuses.",
+  keywords: [
+    "accountability",
+    "AI",
+    "goal tracking",
+    "productivity",
+    "decay state",
+    "execute or decay",
+  ],
+  authors: [{ name: "DecayState" }],
+  openGraph: {
+    title: "DecayState — Execute or Decay",
+    description:
+      "Manifest your future or watch it fade. Execute 80% of your daily protocol, or physically watch your ambition decay. Strict AI. No Excuses.",
+    url: "/",
+    siteName: "DecayState",
+    images: [
+      {
+        url: "/decaystate-banner.png",
+        width: 1836,
+        height: 927,
+        alt: "DecayState — Execute or Decay",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DecayState — Execute or Decay",
+    description:
+      "Manifest your future or watch it fade. Strict AI. No Excuses.",
+    images: ["/decaystate-banner.png"],
+    creator: "@decaystate",
+  },
 };
 
 export default function RootLayout({
