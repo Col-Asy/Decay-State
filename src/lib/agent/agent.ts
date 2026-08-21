@@ -21,16 +21,18 @@ export function createNeuralLinkAgent(
   userId: string,
   integrity: number,
   supabase: SupabaseClient,
-  options: { isWeeklyReview?: boolean } = {},
+  options: { isWeeklyReview?: boolean; hasImages?: boolean } = {},
 ) {
   const tools = createAgentTools(userId, supabase);
   const systemPrompt = options.isWeeklyReview
     ? buildWeeklyReviewPrompt()
     : buildSystemPrompt(integrity);
 
+  const selectedModelId = options.hasImages ? "qwen/qwen3.6-27b" : getGroqModelId();
+
   const model = new ChatGroq({
     apiKey: getGroqApiKey(),
-    model: getGroqModelId(),
+    model: selectedModelId,
     temperature: 0.7,
     maxTokens: 2048,
   }).bindTools(tools);
@@ -49,7 +51,7 @@ export function createNeuralLinkAgent(
         console.warn("Agent tool call failed, retrying without tools:", error.message);
         const plainModel = new ChatGroq({
           apiKey: getGroqApiKey(),
-          model: getGroqModelId(),
+          model: selectedModelId,
           temperature: 0.7,
           maxTokens: 2048,
         });

@@ -97,13 +97,18 @@ export async function saveMessage(
   userId: string,
   sender: "user" | "ai",
   text: string,
+  attachments?: any[],
 ): Promise<void> {
   const supabase = createClient();
+  let dbText = text;
+  if (attachments && attachments.length > 0) {
+    dbText = `${text}\n\n[ATTACHMENTS_METADATA:${JSON.stringify(attachments)}]`;
+  }
   await supabase.from("ai_chats").insert({
     conversation_id: conversationId,
     user_id: userId,
     sender,
-    text,
+    text: dbText,
   });
 }
 
@@ -112,7 +117,7 @@ export async function saveMessage(
  */
 export async function getConversationMessages(
   conversationId: string,
-): Promise<Array<{ id: string; sender: "user" | "ai"; text: string; created_at: string }>> {
+): Promise<Array<{ id: string; sender: "user" | "ai"; text: string; created_at: string; attachments?: any[] }>> {
   const supabase = createClient();
 
   const { data, error } = await supabase
@@ -122,7 +127,29 @@ export async function getConversationMessages(
     .order("created_at", { ascending: true });
 
   if (error) throw new Error(`Failed to load messages: ${error.message}`);
-  return (data || []) as Array<{ id: string; sender: "user" | "ai"; text: string; created_at: string }>;
+  
+  const parsedMessages = (data || []).map((m) => {
+    let cleanText = m.text;
+    let attachments: any[] | undefined = undefined;
+    
+    const match = m.text.match(/\n\n\[ATTACHMENTS_METADATA:([\s\S]*)\]$/);
+    if (match) {
+      try {
+        attachments = JSON.parse(match[1]);
+        cleanText = m.text.substring(0, match.index);
+      } catch (e) {
+        console.error("Failed to parse attachments metadata", e);
+      }
+    }
+    
+    return {
+      ...m,
+      text: cleanText,
+      attachments,
+    };
+  });
+
+  return parsedMessages;
 }
 
 /**

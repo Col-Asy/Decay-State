@@ -18,10 +18,6 @@ function getChromaClient(): CloudClient {
   return client;
 }
 
-/**
- * Custom embedding function wrapping HuggingFace sentence-transformers.
- * Registered with the collection so ChromaDB knows how to embed documents.
- */
 const hfEmbeddingFunction: EmbeddingFunction = {
   name: "huggingface-minilm",
   async generate(texts: string[]): Promise<number[][]> {
@@ -41,12 +37,31 @@ export async function getJournalCollection(): Promise<Collection> {
   if (collectionCache) return collectionCache;
 
   const chroma = getChromaClient();
-  collectionCache = await chroma.getOrCreateCollection({
-    name: process.env.CHROMA_COLLECTION || "journal_entries",
-    embeddingFunction: hfEmbeddingFunction,
-    configuration: {
-      hnsw: { space: "cosine" },
-    },
-  });
+
+  // Temporarily intercept console.warn to silence ChromaDB's deserialization warnings
+  const originalWarn = console.warn;
+  console.warn = (...args: any[]) => {
+    if (
+      args[0] &&
+      typeof args[0] === "string" &&
+      (args[0].includes("embedding function") || args[0].includes("DefaultEmbeddingFunction"))
+    ) {
+      return;
+    }
+    originalWarn(...args);
+  };
+
+  try {
+    collectionCache = await chroma.getOrCreateCollection({
+      name: process.env.CHROMA_COLLECTION || "journal_entries",
+      embeddingFunction: hfEmbeddingFunction,
+      configuration: {
+        hnsw: { space: "cosine" },
+      },
+    });
+  } finally {
+    console.warn = originalWarn;
+  }
+
   return collectionCache;
 }

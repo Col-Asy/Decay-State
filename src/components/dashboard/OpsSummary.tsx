@@ -116,7 +116,7 @@ export function OpsSummary() {
       <div className="relative z-10 border-t border-white/5 pt-3 space-y-1.5">
         <div className="flex justify-between items-center">
           <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono font-bold">
-            Overall Compliance
+            Overall Progress
           </span>
           <span
             className={`text-base font-display font-black tracking-tight ${overallPct === 100 ? "text-accent" : "text-white"}`}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BrainCircuit, Send, Loader2, CheckCircle2 } from "lucide-react";
+import { BrainCircuit, Send, Loader2, CheckCircle2, Mic, MicOff } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useAuth } from "@/context/AuthContext";
 import { createConversation, saveMessage } from "@/lib/db/conversations";
@@ -34,15 +34,55 @@ export function OnboardingChat({ goal, manifesto, timeframe, onComplete, onSkip 
   const [isFinished, setIsFinished] = useState(false);
   const [generatedMandates, setGeneratedMandates] = useState<Mandate[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasInitialized = useRef(false);
   const { user } = useAuth();
+
+  // Initialize: Speech Recognition
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+
+        recognitionRef.current.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setInput(transcript);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+          console.error("Speech recognition error", event.error);
+          setIsListening(false);
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+        };
+      }
+    }
+  }, []);
+
+  const toggleVoiceInput = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      if (recognitionRef.current) {
+        recognitionRef.current.start();
+        setIsListening(true);
+      }
+    }
+  };
 
   // Initial trigger
   useEffect(() => {
     if (hasInitialized.current || !user) return;
     hasInitialized.current = true;
-    
+
     // Create an onboarding conversation first
     createConversation(user.id, { title: "Initial Onboarding Assessment" })
       .then(conv => {
@@ -67,7 +107,7 @@ export function OnboardingChat({ goal, manifesto, timeframe, onComplete, onSkip 
         { id: Date.now().toString(), sender: "user", text }
       ]);
       setInput("");
-      
+
       // Async persist to DB
       saveMessage(convId, user.id, "user", text).catch(console.error);
     }
@@ -106,10 +146,10 @@ export function OnboardingChat({ goal, manifesto, timeframe, onComplete, onSkip 
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
         if (!value) continue;
-        
+
         const chunk = decoder.decode(value);
         const lines = chunk.split("\n");
-        
+
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           const dataStr = line.slice(6);
@@ -121,7 +161,7 @@ export function OnboardingChat({ goal, manifesto, timeframe, onComplete, onSkip 
             if (event.type === "text") {
               accumulatedText += event.content;
               const displayText = accumulatedText.replace(/ONBOARDING_COMPLETE[\s\S]*$/, "").trim();
-              
+
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === aiMsgId ? { ...msg, text: displayText } : msg,
@@ -164,21 +204,21 @@ export function OnboardingChat({ goal, manifesto, timeframe, onComplete, onSkip 
       className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-4 md:p-8 font-mono"
     >
       <div className="w-full max-w-2xl h-full max-h-[800px] flex flex-col border border-white/10 cyber-border relative overflow-hidden bg-[#050505]">
-        
+
         {/* Header */}
         <header className="p-4 border-b border-white/10 flex items-center justify-between shrink-0 bg-black/50 backdrop-blur-sm relative z-10">
           <div className="flex items-center gap-3">
             <BrainCircuit className="w-5 h-5 text-accent animate-pulse" />
             <div>
               <h2 className="text-white font-bold uppercase tracking-widest text-sm">Neural Link</h2>
-              <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Protocol Induction Matrix</p>
+              <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Protocol Setup Matrix</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onSkip}
             className="text-[10px] uppercase tracking-widest text-zinc-500 hover:text-white transition-colors border border-white/10 px-3 py-1 hover:border-white/30"
           >
-            Skip Induction
+            Skip Setup
           </button>
         </header>
 
@@ -193,11 +233,10 @@ export function OnboardingChat({ goal, manifesto, timeframe, onComplete, onSkip 
                 className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"}`}
               >
                 <div
-                  className={`max-w-[85%] p-4 ${
-                    msg.sender === "user"
+                  className={`max-w-[85%] p-4 ${msg.sender === "user"
                       ? "border border-white/15 bg-white/[0.03] text-white"
                       : "border-l-2 border-accent/70 bg-accent/[0.03] text-white pl-4"
-                  }`}
+                    }`}
                 >
                   {msg.sender === "ai" && (
                     <span className="block text-[9px] text-accent/50 mb-2 font-bold tracking-widest uppercase flex items-center gap-1.5">
@@ -228,18 +267,17 @@ export function OnboardingChat({ goal, manifesto, timeframe, onComplete, onSkip 
             >
               <div className="text-center space-y-1 pb-4 border-b border-accent/10">
                 <CheckCircle2 className="w-8 h-8 text-accent mx-auto mb-2" />
-                <h3 className="text-lg font-bold uppercase tracking-widest text-white">Induction Complete</h3>
-                <p className="text-xs text-zinc-400">Initial operational mandates generated.</p>
+                <h3 className="text-lg font-bold uppercase tracking-widest text-white">Setup Complete</h3>
+                <p className="text-xs text-zinc-400">Initial tasks generated.</p>
               </div>
 
               <div className="grid gap-2">
                 {generatedMandates.map((m, i) => (
                   <div key={i} className="bg-black/40 border border-white/5 p-3 flex gap-3 text-xs">
-                    <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 uppercase self-start mt-0.5 ${
-                      m.category === "physical" ? "text-red-400 bg-red-400/10" :
-                      m.category === "intellectual" ? "text-blue-400 bg-blue-400/10" :
-                      "text-purple-400 bg-purple-400/10"
-                    }`}>
+                    <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 uppercase self-start mt-0.5 ${m.category === "physical" ? "text-red-400 bg-red-400/10" :
+                        m.category === "intellectual" ? "text-blue-400 bg-blue-400/10" :
+                          "text-purple-400 bg-purple-400/10"
+                      }`}>
                       {m.category.slice(0, 4)}
                     </span>
                     <div>
@@ -254,7 +292,7 @@ export function OnboardingChat({ goal, manifesto, timeframe, onComplete, onSkip 
                 onClick={() => onComplete(generatedMandates)}
                 className="w-full bg-accent text-black font-bold uppercase tracking-widest py-3 mt-4 hover:bg-white transition-colors text-xs"
               >
-                Accept Mandates & Proceed
+                Accept Tasks & Proceed
               </button>
             </motion.div>
           )}
@@ -277,19 +315,31 @@ export function OnboardingChat({ goal, manifesto, timeframe, onComplete, onSkip 
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
-              placeholder={isFinished ? "INDUCTION COMPLETE." : "Respond to protocol..."}
+              placeholder={isListening ? "LISTENING..." : isFinished ? "INDUCTION COMPLETE." : "Respond to protocol..."}
               disabled={isLoading || isFinished}
               readOnly={isFinished}
               autoFocus
-              className="w-full bg-[#0a0a0a] border border-white/10 p-4 pr-12 focus:outline-none focus:border-accent focus:text-white text-zinc-400 placeholder:text-zinc-700 font-mono text-sm relative z-20 transition-colors disabled:opacity-50"
+              className={`w-full bg-[#0a0a0a] border p-4 pr-24 focus:outline-none focus:text-white text-zinc-400 placeholder:text-zinc-700 font-mono text-sm relative z-20 transition-colors ${isListening ? "border-accent animate-pulse" : "border-white/10 focus:border-accent"
+                } disabled:opacity-50`}
             />
-            <button
-              onClick={() => sendMessage(input)}
-              disabled={isLoading || isFinished || !input.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-accent disabled:opacity-30 p-2 z-30 transition-colors"
-            >
-              <Send size={18} />
-            </button>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-30">
+              <button
+                onClick={toggleVoiceInput}
+                disabled={isLoading || isFinished}
+                title={isListening ? "Stop Listening" : "Start Voice Input"}
+                className={`p-2 transition-colors ${isListening ? "text-accent" : "text-zinc-500 hover:text-accent"
+                  } disabled:opacity-30`}
+              >
+                {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+              </button>
+              <button
+                onClick={() => sendMessage(input)}
+                disabled={isLoading || isFinished || (!input.trim() && !isListening)}
+                className="text-zinc-500 hover:text-accent disabled:opacity-30 p-2 transition-colors"
+              >
+                <Send size={18} />
+              </button>
+            </div>
           </div>
         </div>
 

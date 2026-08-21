@@ -71,8 +71,8 @@ export const FAQ = () => {
   ];
 
   return (
-    <section className="min-h-screen flex items-center justify-center py-24 px-6 bg-black">
-      <div className="w-full max-w-3xl mx-auto space-y-20">
+    <section className="min-h-screen flex items-center justify-center py-24 px-4 sm:px-6 bg-black">
+      <div className="w-full max-w-5xl mx-auto space-y-20 px-2 md:px-8">
         {/* Header */}
         <div className="text-center space-y-2">
           <h2 className="font-display font-black text-4xl uppercase tracking-tighter text-white/50">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Save, ImageIcon, X, Link2, Target } from "lucide-react";
+import { Save, ImageIcon, X, Link2, Target, Mic, MicOff } from "lucide-react";
 import { logActivity } from "@/lib/activityLog";
 import { useAuth } from "@/context/AuthContext";
 import { getJournalEntries, addJournalEntry } from "@/lib/db/journal";
@@ -30,11 +30,54 @@ export function Journal() {
   const [selectedMissionId, setSelectedMissionId] = useState<string>("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   const [mandateOptions, setMandateOptions] = useState<MandateOption[]>([]);
   const [missionOptions, setMissionOptions] = useState<Mission[]>([]);
 
   const imgInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+
+        recognitionRef.current.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          const field = recognitionRef.current.field;
+          if (field === "wins") setWins(prev => prev + (prev ? " " : "") + transcript);
+          else if (field === "failures") setFailures(prev => prev + (prev ? " " : "") + transcript);
+          else if (field === "adjustments") setAdjustments(prev => prev + (prev ? " " : "") + transcript);
+          setIsListening(null);
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+          console.error("Speech recognition error", event.error);
+          setIsListening(null);
+        };
+
+        recognitionRef.current.onend = () => {
+          setIsListening(null);
+        };
+      }
+    }
+  }, []);
+
+  const toggleVoiceInput = (field: string) => {
+    if (isListening === field) {
+      recognitionRef.current?.stop();
+    } else {
+      if (recognitionRef.current) {
+        recognitionRef.current.field = field;
+        recognitionRef.current.start();
+        setIsListening(field);
+      }
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -135,38 +178,71 @@ export function Journal() {
         <div className="space-y-4 flex-1 overflow-y-auto pr-2">
           {/* Text fields */}
           <div className="space-y-2">
-            <label className="text-[9px] uppercase tracking-widest text-green-500 font-bold block bg-green-500/10 inline-block px-2 py-1 rounded border border-green-500/20">
-              Critical Wins [SUCCESS]
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] uppercase tracking-widest text-green-500 font-bold block bg-green-500/10 inline-block px-2 py-1 rounded border border-green-500/20">
+                Critical Wins [SUCCESS]
+              </label>
+              <button
+                onClick={() => toggleVoiceInput("wins")}
+                className={`text-zinc-500 hover:text-green-500 transition-colors ${isListening === "wins" ? "text-green-500 animate-pulse" : ""}`}
+                title="Voice Input"
+              >
+                {isListening === "wins" ? <MicOff size={14} /> : <Mic size={14} />}
+              </button>
+            </div>
             <textarea
               value={wins}
               onChange={(e) => setWins(e.target.value)}
-              className="w-full bg-black border border-white/10 p-4 text-sm font-mono h-28 focus:outline-none focus:border-green-500/50 resize-none text-zinc-300 placeholder:text-zinc-800"
-              placeholder="> LOG_OPTIMAL_EXECUTION..."
+              className={`w-full bg-black border p-4 text-sm font-mono h-28 focus:outline-none resize-none text-zinc-300 placeholder:text-zinc-800 transition-colors ${
+                isListening === "wins" ? "border-green-500/50" : "border-white/10 focus:border-green-500/50"
+              }`}
+              placeholder={isListening === "wins" ? "> LISTENING..." : "> LOG_OPTIMAL_EXECUTION..."}
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-[9px] uppercase tracking-widest text-red-500 font-bold block bg-red-500/10 inline-block px-2 py-1 rounded border border-red-500/20">
-              Protocol Failures [ERROR]
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] uppercase tracking-widest text-red-500 font-bold block bg-red-500/10 inline-block px-2 py-1 rounded border border-red-500/20">
+                Protocol Failures [ERROR]
+              </label>
+              <button
+                onClick={() => toggleVoiceInput("failures")}
+                className={`text-zinc-500 hover:text-red-500 transition-colors ${isListening === "failures" ? "text-red-500 animate-pulse" : ""}`}
+                title="Voice Input"
+              >
+                {isListening === "failures" ? <MicOff size={14} /> : <Mic size={14} />}
+              </button>
+            </div>
             <textarea
               value={failures}
               onChange={(e) => setFailures(e.target.value)}
-              className="w-full bg-black border border-white/10 p-4 text-sm font-mono h-28 focus:outline-none focus:border-red-500/50 resize-none text-zinc-300 placeholder:text-zinc-800"
-              placeholder="> LOG_SYSTEM_DEVIATION..."
+              className={`w-full bg-black border p-4 text-sm font-mono h-28 focus:outline-none resize-none text-zinc-300 placeholder:text-zinc-800 transition-colors ${
+                isListening === "failures" ? "border-red-500/50" : "border-white/10 focus:border-red-500/50"
+              }`}
+              placeholder={isListening === "failures" ? "> LISTENING..." : "> LOG_SYSTEM_DEVIATION..."}
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-[9px] uppercase tracking-widest text-accent font-bold block bg-accent/10 inline-block px-2 py-1 rounded border border-accent/20">
-              Tactical Adjustments [PATCH]
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] uppercase tracking-widest text-accent font-bold block bg-accent/10 inline-block px-2 py-1 rounded border border-accent/20">
+                Tactical Adjustments [PATCH]
+              </label>
+              <button
+                onClick={() => toggleVoiceInput("adjustments")}
+                className={`text-zinc-500 hover:text-accent transition-colors ${isListening === "adjustments" ? "text-accent animate-pulse" : ""}`}
+                title="Voice Input"
+              >
+                {isListening === "adjustments" ? <MicOff size={14} /> : <Mic size={14} />}
+              </button>
+            </div>
             <textarea
               value={adjustments}
               onChange={(e) => setAdjustments(e.target.value)}
-              className="w-full bg-black border border-white/10 p-4 text-sm font-mono h-28 focus:outline-none focus:border-accent/50 resize-none text-zinc-300 placeholder:text-zinc-800"
-              placeholder="> LOG_CORRECTIVE_ACTION..."
+              className={`w-full bg-black border p-4 text-sm font-mono h-28 focus:outline-none resize-none text-zinc-300 placeholder:text-zinc-800 transition-colors ${
+                isListening === "adjustments" ? "border-accent/50" : "border-white/10 focus:border-accent/50"
+              }`}
+              placeholder={isListening === "adjustments" ? "> LISTENING..." : "> LOG_CORRECTIVE_ACTION..."}
             />
           </div>
 
@@ -282,8 +358,8 @@ export function Journal() {
       </div>
 
       {/* History - Timeline View */}
-      <div className="flex flex-col gap-6 h-full border-l border-white/5 pl-12 relative">
-        <div className="absolute left-[24px] top-12 bottom-0 w-px bg-white/10" />
+      <div className="flex flex-col gap-6 h-full border-t border-white/5 lg:border-t-0 lg:border-l lg:border-white/5 pt-8 lg:pt-0 pl-6 lg:pl-12 relative">
+        <div className="absolute left-[12px] lg:left-[24px] top-12 bottom-0 w-px bg-white/10" />
 
         <div className="flex items-center justify-between text-xs uppercase tracking-widest text-zinc-500 border-b border-white/10 pb-2">
           <span>Archive_DB :: READ_ONLY</span>
@@ -301,7 +377,7 @@ export function Journal() {
           {entries.map((entry) => (
             <div key={entry.id} className="relative pl-8 group">
               {/* Timeline Node */}
-              <div className="absolute -left-[30px] top-4 w-3 h-3 bg-black border border-white/20 rounded-full group-hover:border-accent group-hover:bg-accent group-hover:scale-125 transition-all z-10" />
+              <div className="absolute -left-[18px] lg:-left-[30px] top-4 w-3 h-3 bg-black border border-white/20 rounded-full group-hover:border-accent group-hover:bg-accent group-hover:scale-125 transition-all z-10" />
 
               <div className="p-6 border border-white/10 bg-black/50 space-y-4 hover:border-white/20 transition-colors relative group cyber-border">
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-white/5 group-hover:bg-accent transition-colors" />

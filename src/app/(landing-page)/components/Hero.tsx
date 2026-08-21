@@ -61,7 +61,7 @@ export const Hero = () => {
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-[1200px] h-full max-h-[85vh] frame-border bg-[#050505] p-8 md:p-12 relative overflow-hidden flex flex-col justify-between"
+        className="w-full max-w-[1440px] h-full max-h-[85vh] frame-border bg-[#050505] p-8 md:p-12 relative overflow-hidden flex flex-col justify-between"
       >
         {/* Frame Decorative Notches */}
         <div className="absolute top-0 right-10 w-40 h-6 border-x border-b border-white/10 rounded-b-xl px-4 flex items-center justify-between text-[6px] text-white/40 uppercase tracking-[0.3em]">
@@ -140,16 +140,9 @@ export const Hero = () => {
             >
               <Button
                 className="h-10 px-6 bg-transparent text-accent border border-accent hover:bg-accent/10 font-bold text-[10px] tracking-widest"
-                onClick={() => window.location.href = '/signup'}
+                onClick={() => window.location.href = '/waitlist'}
               >
-                Join Protocol
-              </Button>
-              <Button
-                variant="ghost"
-                className="h-10 px-6 text-[10px] tracking-[0.2em] text-white border border-white/20 hover:border-white/50 hover:bg-white/5"
-                onClick={() => window.location.href = '/login'}
-              >
-                Resume Protocol
+                Join Waitlist
               </Button>
             </motion.div>
           </div>

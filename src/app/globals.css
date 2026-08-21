@@ -22,6 +22,7 @@
   --font-mono: 'Roboto Mono', monospace;
   --font-sans: var(--font-inter), sans-serif;
   --font-display: var(--font-space-display), sans-serif;
+  --font-handwritten: var(--font-handwritten), 'Architects Daughter', cursive;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-accent-red: var(--accent-red);
@@ -38,6 +39,16 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+/* Global neon text selection — matches hero accent */
+::selection {
+  background-color: #d4ff00;
+  color: #000000;
+}
+::-moz-selection {
+  background-color: #d4ff00;
+  color: #000000;
 }
 
 /* Brutalist Utilities */
@@ -193,6 +204,15 @@ body {
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  --font-size-xs: 0.85rem;
+  --font-size-sm: 0.95rem;
+  --font-size-base: 1.1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.4rem;
+  --font-size-2xl: 1.7rem;
+  --font-size-3xl: 2.1rem;
+  --font-size-4xl: 2.6rem;
 }
 
 :root {
@@ -341,4 +361,26 @@ html {
   cursor: pointer;
   box-shadow: 0 0 10px #d4ff00 !important;
   transition: transform 0.1s ease;
+}
+
+/* Global Font Size Scaling Overrides for Arbitrary Small Sizes */
+.text-\[8px\] {
+  font-size: 11px !important;
+}
+.text-\[9px\] {
+  font-size: 12px !important;
+}
+.text-\[10px\] {
+  font-size: 13.5px !important;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
 }

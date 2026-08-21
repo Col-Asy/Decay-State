@@ -11,6 +11,12 @@ export interface ChatMessage {
   sender: "user" | "ai";
   text: string;
   timestamp: number;
+  attachments?: {
+    name: string;
+    type: "image" | "doc";
+    mimeType: string;
+    content: string;
+  }[];
 }
 
 export interface UserState {
