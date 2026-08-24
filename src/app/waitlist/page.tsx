@@ -77,10 +77,28 @@ export default function WaitlistPage() {
     }
     setLoading(true);
     setError("");
-    // Simulate submission (replace with actual API call)
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    setSubmitted(true);
+
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), tier: selectedTier }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? "Submission failed. Try again.");
+        setLoading(false);
+        return;
+      }
+
+      setSubmitted(true);
+    } catch {
+      setError("Network error. Check your connection.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
