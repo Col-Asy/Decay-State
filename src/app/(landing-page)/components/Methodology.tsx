@@ -5,28 +5,24 @@ import { Brain, UserCheck, Activity } from "lucide-react";
 
 export const Methodology = () => {
   return (
-    <section className="min-h-screen flex items-center justify-center py-24 px-6 bg-[#030303] border-t border-white/5 relative overflow-hidden">
+    <section className="min-h-screen flex items-center justify-center py-24 px-4 sm:px-6 bg-[#030303] border-t border-white/5 relative overflow-hidden">
       {/* Grid Background */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px] opacity-20 pointer-events-none" />
 
-      <div className="w-full max-w-[1200px] mx-auto relative z-10">
-        <div className="flex flex-col md:flex-row gap-12 items-start mb-20">
-          <div className="flex-1">
-            <h2 className="font-display font-black text-5xl md:text-7xl uppercase tracking-tighter leading-none">
-              Psychology <br /> of <span className="text-accent">Loss.</span>
-            </h2>
-          </div>
-          <div className="flex-1 pt-4">
-            <p className="text-sm text-muted-foreground uppercase tracking-widest leading-relaxed border-l border-accent/20 pl-6">
-              Humans are wired to ignore abstract gains but violently reject
-              visual loss.
-              <br />
-              <br />
-              We don&apos;t give you a &quot;streak&quot; to maintain. We give
-              you a &quot;living self&quot; that dies when you fail. It&apos;s
-              not gamification. It&apos;s digital hostage-taking.
-            </p>
-          </div>
+      <div className="w-full max-w-[1440px] mx-auto relative z-10 px-2 md:px-8">
+        <div className="flex flex-col items-center text-center max-w-3xl mx-auto mb-20 space-y-6">
+          <h2 className="font-display font-black text-5xl md:text-7xl uppercase tracking-tighter leading-none">
+            Psychology of <span className="text-accent">Loss.</span>
+          </h2>
+          <p className="text-sm text-muted-foreground uppercase tracking-widest leading-relaxed max-w-xl mx-auto">
+            Humans are wired to ignore abstract gains but violently reject
+            visual loss.
+            <br />
+            <br />
+            We don&apos;t give you a &quot;streak&quot; to maintain. We give
+            you a &quot;living self&quot; that dies when you fail. It&apos;s
+            not gamification. It&apos;s digital hostage-taking.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

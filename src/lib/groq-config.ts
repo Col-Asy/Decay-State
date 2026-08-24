@@ -27,7 +27,7 @@ export function getGroqApiKey(): string {
  * Gets the model ID for Groq API.
  */
 export function getGroqModelId(): string {
-  return process.env.GROQ_MODEL_ID || "llama-3.3-70b-versatile";
+  return process.env.GROQ_MODEL_ID || "openai/gpt-oss-120b";
 }
 
 /**

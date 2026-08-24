@@ -6,24 +6,24 @@ import { Flame, Skull, HeartPulse, Lock } from "lucide-react";
 
 export const Manifesto = () => {
   return (
-    <section className="min-h-screen flex items-center justify-center py-32 px-6 bg-[#050505] relative overflow-hidden">
+    <section className="min-h-screen flex items-center justify-center py-32 px-4 sm:px-6 bg-[#050505] relative overflow-hidden">
       {/* Background Noise */}
       <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] brightness-100 contrast-150"></div>
 
-      <div className="w-full max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-20">
+      <div className="w-full max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-20 px-2 md:px-8">
         {/* Left: The Philosophy */}
-        <div className="space-y-12">
-          <div className="space-y-4">
-            <h2 className="font-display font-black text-4xl md:text-5xl uppercase tracking-tighter leading-none">
+        <div className="space-y-12 flex flex-col items-center md:items-start">
+          <div className="space-y-4 flex flex-col items-center md:items-start text-center md:text-left w-full">
+            <h2 className="font-display font-black text-4xl md:text-5xl uppercase tracking-tighter leading-none text-center md:text-left">
               Planning is a <br />
               <span className="text-muted-foreground line-through decoration-red-900/50">
                 Filing Cabinet.
               </span>
             </h2>
-            <p className="text-xl font-display font-bold uppercase tracking-wide text-accent">
+            <p className="text-xl font-display font-bold uppercase tracking-wide text-accent text-center md:text-left">
               We are an Active Accountability Engine.
             </p>
-            <p className="text-muted-foreground text-sm uppercase tracking-widest leading-relaxed max-w-md">
+            <p className="text-muted-foreground text-sm uppercase tracking-widest leading-relaxed max-w-md mx-auto md:mx-0 text-center md:text-left">
               Passive tools let your dreams rot in a &quot;To-Do&quot; list. We
               physically show you the decay. We don&apos;t &quot;organize&quot;
               your life; we enforce your ambition.

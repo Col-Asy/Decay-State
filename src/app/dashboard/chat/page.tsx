@@ -26,8 +26,8 @@ export default function ChatPage() {
   if (!user) return null;
 
   return (
-    <div className="h-screen p-8 flex flex-col max-w-5xl mx-auto">
-      <header className="mb-4 shrink-0">
+    <div className="h-[calc(100vh-4rem)] md:h-screen p-4 md:p-8 flex flex-col max-w-full mx-auto">
+      <header className="mb-4 shrink-0 text-center">
         <h1 className="text-3xl font-display font-black tracking-tighter uppercase mb-2">
           Neural Link
         </h1>

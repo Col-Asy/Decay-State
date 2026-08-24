@@ -65,8 +65,8 @@ export const Pricing = () => {
   };
 
   return (
-    <section className="min-h-screen flex items-center justify-center py-32 px-6 bg-black">
-      <div className="w-full max-w-[1100px] mx-auto space-y-16">
+    <section className="min-h-screen flex items-center justify-center py-32 px-4 sm:px-6 bg-black">
+      <div className="w-full max-w-[1440px] mx-auto space-y-16 px-2 md:px-8">
         <div className="text-center space-y-4">
           <h2 className="font-display font-black text-5xl md:text-7xl uppercase tracking-tighter">
             CHOOSE YOUR <br />
@@ -100,7 +100,7 @@ export const Pricing = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-[16rem] max-w-[1350px] mx-auto">
           {/* OBSERVER — Free */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -125,7 +125,7 @@ export const Pricing = () => {
               $0 <span className="text-xs text-muted-foreground">/ MO</span>
             </div>
 
-            <ul className="space-y-3 flex-1">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 flex-1">
               {OBSERVER_FEATURES.map((item) => (
                 <li
                   key={item}
@@ -194,7 +194,7 @@ export const Pricing = () => {
               )}
             </div>
 
-            <ul className="space-y-3 flex-1">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 flex-1">
               {OPERATOR_FEATURES.map((item) => (
                 <li
                   key={item}

@@ -5,7 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, history, integrity, userId, isWeeklyReview } = await req.json();
+    const { message, history, integrity, userId, isWeeklyReview, attachments } = await req.json();
+
+    const images = attachments?.filter((a: any) => a.type === "image") || [];
+    const docs = attachments?.filter((a: any) => a.type === "doc") || [];
 
     // Create server-side Supabase client with request cookies for auth/RLS
     const supabase = await createClient();
@@ -14,7 +17,10 @@ export async function POST(req: NextRequest) {
       userId || "anonymous",
       integrity ?? 50,
       supabase,
-      { isWeeklyReview: !!isWeeklyReview },
+      { 
+        isWeeklyReview: !!isWeeklyReview,
+        hasImages: images.length > 0,
+      },
     );
 
     // --- RAG: Retrieve and summarize relevant journal context ---
@@ -37,9 +43,30 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Convert chat history to LangChain message format
-    const messages = convertHistory(history || [], enrichedPrompt);
-    messages.push(new HumanMessage(message));
+    // Convert chat history to LangChain message format (limit history to stay within TPM limits)
+    const messages = convertHistory((history || []).slice(-6), enrichedPrompt);
+    
+    // If documents are attached, enrich the user's message text with doc content
+    let finalMessageContent: any = message;
+    if (docs.length > 0) {
+      const docContext = docs.map((d: any) => `[ATTACHED DOCUMENT: ${d.name}]\n${d.content}\n[END OF DOCUMENT]`).join("\n\n");
+      finalMessageContent = `${docContext}\n\nUser request: ${message}`;
+    }
+
+    if (images.length > 0) {
+      const contentBlocks: any[] = [{ type: "text", text: finalMessageContent }];
+      for (const img of images) {
+        contentBlocks.push({
+          type: "image_url",
+          image_url: {
+            url: img.content,
+          },
+        });
+      }
+      messages.push(new HumanMessage({ content: contentBlocks }));
+    } else {
+      messages.push(new HumanMessage(finalMessageContent));
+    }
 
     // Stream the agent's response
     const encoder = new TextEncoder();

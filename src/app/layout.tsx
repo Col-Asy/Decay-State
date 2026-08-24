@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Roboto_Mono, Inter, Space_Grotesk } from "next/font/google";
+import { Roboto_Mono, Inter, Space_Grotesk, Architects_Daughter } from "next/font/google";
 import "./globals.css";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { AuthProvider } from "@/context/AuthContext";
@@ -20,6 +20,12 @@ const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   weight: ["400", "700"],
   variable: "--font-space-display",
+});
+
+const architectsDaughter = Architects_Daughter({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-handwritten",
 });
 
 export const metadata: Metadata = {
@@ -71,10 +77,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${inter.variable} ${spaceGrotesk.variable}`}
+      className={`dark ${inter.variable} ${spaceGrotesk.variable} ${architectsDaughter.variable}`}
     >
       <body
-        className={`${robotoMono.variable} antialiased bg-black text-white min-h-screen`}
+        className={`${robotoMono.variable} ${architectsDaughter.variable} antialiased bg-black text-white min-h-screen`}
       >
         <AuthProvider>
           <ToastProvider>

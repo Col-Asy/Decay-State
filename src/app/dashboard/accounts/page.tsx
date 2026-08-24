@@ -189,7 +189,7 @@ export default function AccountsPage() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push("/login");
+      router.push("/sys-access");
       return;
     }
     if (!user) return;
@@ -352,7 +352,7 @@ export default function AccountsPage() {
       }
 
       await signOut();
-      router.push("/login");
+      router.push("/sys-access");
     } catch (error) {
       console.error(error);
       alert("An error occurred while deleting your account.");
@@ -372,12 +372,12 @@ export default function AccountsPage() {
   const userName = profileName || user.email?.split("@")[0] || "OPERATIVE";
 
   return (
-    <div className="p-8 max-w-[1200px] mx-auto space-y-8 h-screen flex flex-col overflow-hidden">
+    <div className="p-4 md:p-8 w-full space-y-6 md:space-y-8 min-h-screen lg:h-screen flex flex-col lg:overflow-hidden">
       {/* Page Header */}
-      <header className="shrink-0 border-b border-white/10 pb-6">
-        <div className="flex justify-between items-end">
-          <div className="space-y-1">
-            <div className="text-[10px] text-accent font-mono tracking-widest uppercase flex items-center gap-2">
+      <header className="shrink-0 border-b border-white/10 pb-6 text-center">
+        <div className="flex flex-col justify-between items-center gap-4">
+          <div className="space-y-1 w-full">
+            <div className="text-[10px] text-accent font-mono tracking-widest uppercase flex items-center justify-center gap-2">
               <Shield className="w-3 h-3 animate-pulse" />
               Operator Configuration
             </div>
@@ -716,7 +716,7 @@ export default function AccountsPage() {
               },
               {
                 label: "Weekly Summary",
-                desc: "Receive a weekly protocol compliance digest",
+                desc: "Receive a weekly protocol progress report",
                 state: notifWeekly,
                 setter: setNotifWeekly,
                 key: "weekly",
@@ -757,11 +757,113 @@ export default function AccountsPage() {
           </div>
         </div>
 
-        {/* ─── INTEGRATIONS — temporarily hidden ───
-        <div className="space-y-4">
-          ... integrations section ...
+        {/* ─── INTEGRATIONS ─── */}
+        <div className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="text-[10px] text-accent font-mono tracking-widest uppercase flex items-center gap-2">
+                <Link2 className="w-3 h-3" /> External Neural Links
+              </div>
+              <div className="text-xs text-zinc-500 font-mono">
+                Connect external data sources to automate protocol verification
+              </div>
+            </div>
+            
+            {/* Category Filter */}
+            <div className="flex overflow-x-auto gap-2 pb-2 -mb-2 -mx-4 px-4 no-scrollbar scroll-smooth snap-x snap-mandatory sm:flex-wrap md:mx-0 md:px-0 w-auto shrink-0">
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveFilter(cat.id)}
+                  className={`text-[9px] uppercase tracking-widest font-bold px-3 py-1.5 border transition-all shrink-0 snap-start ${
+                    activeFilter === cat.id
+                      ? "border-accent text-accent bg-accent/5"
+                      : "border-white/5 text-zinc-500 hover:text-white hover:border-white/20"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex overflow-x-auto gap-4 pb-4 -mb-4 -mx-4 px-4 no-scrollbar scroll-smooth snap-x snap-mandatory md:mx-0 md:px-0 md:grid md:grid-cols-2 lg:grid-cols-3 w-auto md:w-full">
+            <AnimatePresence mode="popLayout">
+              {filtered.map((item) => {
+                const Icon = item.icon;
+                const isConnecting = connectingId === item.id;
+                
+                return (
+                  <motion.div
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className={`group relative border bg-[#0a0a0a] p-5 space-y-4 transition-all hover:shadow-[0_0_30px_-10px_rgba(255,255,255,0.05)] shrink-0 w-[290px] snap-center md:w-auto ${
+                      item.connected 
+                        ? "border-accent/30 shadow-[inset_0_0_20px_-10px_rgba(0,255,255,0.05)]" 
+                        : "border-white/5 grayscale hover:grayscale-0"
+                    }`}
+                  >
+                    {/* Background Glow */}
+                    <div 
+                      className="absolute -right-4 -top-4 w-16 h-16 blur-2xl rounded-full opacity-0 group-hover:opacity-20 transition-opacity"
+                      style={{ backgroundColor: item.color }}
+                    />
+
+                    <div className="flex justify-between items-start relative z-10">
+                      <div 
+                        className="p-3 bg-white/5 rounded-lg border border-white/5 group-hover:border-white/20 transition-colors"
+                        style={{ color: item.connected ? item.color : '#71717a' }}
+                      >
+                        <Icon className="w-6 h-6" />
+                      </div>
+                      <div className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest ${
+                        item.connected ? "bg-accent/10 text-accent" : "bg-zinc-900 text-zinc-500"
+                      }`}>
+                        {item.connected ? "Active" : "Offline"}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 relative z-10">
+                      <h3 className="text-sm font-bold text-white uppercase tracking-tight">
+                        {item.name}
+                      </h3>
+                      <p className="text-[10px] text-zinc-500 font-mono leading-relaxed h-8 line-clamp-2">
+                        {item.description}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => handleConnect(item.id)}
+                      disabled={isConnecting}
+                      className={`w-full py-2.5 text-[9px] font-bold uppercase tracking-[0.2em] border transition-all flex items-center justify-center gap-2 ${
+                        item.connected
+                          ? "border-red-500/20 text-red-500/70 hover:bg-red-500/5 hover:border-red-500/40"
+                          : "border-accent/30 text-accent hover:bg-accent/5 hover:border-accent"
+                      } disabled:opacity-50`}
+                    >
+                      {isConnecting ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : item.connected ? (
+                        "Disconnect"
+                      ) : (
+                        "Establish Link"
+                      )}
+                    </button>
+
+                    {/* Corner Accents */}
+                    <div className="absolute top-0 left-0 w-1 h-1 border-t border-l border-white/20" />
+                    <div className="absolute top-0 right-0 w-1 h-1 border-t border-r border-white/20" />
+                    <div className="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-white/20" />
+                    <div className="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-white/20" />
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
         </div>
-        */}
 
         {/* ─── DANGER ZONE ─── */}
         <div className="border border-red-500/20 bg-red-500/5 p-6 space-y-4">

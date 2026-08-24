@@ -44,7 +44,7 @@ export default function Dashboard() {
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push("/login");
+      router.push("/sys-access");
     }
   }, [user, authLoading, router]);
 
@@ -128,7 +128,7 @@ export default function Dashboard() {
 
   const handleSignOut = async () => {
     await signOut();
-    window.location.href = "/login";
+    window.location.href = "/sys-access";
   };
 
   const handleMissionUpdate = (goal: string, timeframe: string) => {
@@ -177,9 +177,9 @@ export default function Dashboard() {
   const currentGoal = mission?.goal ?? "No active mission";
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto space-y-8 h-screen flex flex-col overflow-hidden">
+    <div className="p-4 md:p-8 w-full space-y-6 md:space-y-8 min-h-screen lg:h-screen flex flex-col lg:overflow-hidden">
       {/* HUD Header */}
-      <header className="flex justify-between items-center border-b border-white/10 pb-4 shrink-0">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/10 pb-4 gap-4 shrink-0">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 border border-white/10 flex items-center justify-center bg-white/5 relative group">
             <div className="absolute inset-0 bg-accent/20 animate-pulse" />
@@ -210,7 +210,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
           <MissionSelector
             initialGoal={currentGoal}
             initialTimeframe={mission?.timeframe}
@@ -241,9 +241,9 @@ export default function Dashboard() {
       </header>
 
       {/* Main Dashboard Grid */}
-      <div className="flex-1 grid grid-cols-12 gap-6 min-h-0 overflow-hidden">
+      <div className="flex-1 grid grid-cols-12 gap-6 min-h-0 lg:overflow-hidden">
         {/* LEFT COL: Biometrics & Visuals (6 cols) */}
-        <div className="col-span-12 lg:col-span-6 flex flex-col gap-6 h-full overflow-hidden">
+        <div className="col-span-12 lg:col-span-6 flex flex-col gap-6 h-[540px] sm:h-[600px] lg:h-full lg:overflow-hidden">
           <div className="flex-1 border border-white/10 bg-[#0a0a0a] relative group overflow-hidden cyber-border flex flex-col">
             {/* Scanline Overlay */}
             <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-20 pointer-events-none bg-[length:100%_4px,3px_100%] opacity-20" />
@@ -273,7 +273,7 @@ export default function Dashboard() {
             </div>
 
             {/* Central Image */}
-            <div className="absolute inset-0 flex items-center justify-center p-12 z-10">
+            <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-8 lg:p-12 z-10">
               <FutureSelfImage
                 integrity={displayIntegrity}
                 shields={shields?.count ?? 3}
@@ -293,7 +293,7 @@ export default function Dashboard() {
             )}
 
             {/* Integrity Bar */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/80 to-transparent z-30 flex flex-col gap-4 border-t border-white/5">
+            <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-black via-black/85 to-transparent z-30 flex flex-col gap-3 sm:gap-4 border-t border-white/5">
               <div className="flex justify-between items-end">
                 <div className="space-y-1">
                   <div className="text-[9px] text-zinc-500 uppercase tracking-widest flex items-center gap-2">
@@ -351,7 +351,7 @@ export default function Dashboard() {
         </div>
 
         {/* RIGHT COL: Status & Controls (6 cols) */}
-        <div className="col-span-12 lg:col-span-6 flex flex-col gap-4 h-full overflow-hidden">
+        <div className="col-span-12 lg:col-span-6 flex flex-col gap-4 h-auto lg:h-full lg:overflow-hidden">
           {/* KPI Row */}
           <div className="grid grid-cols-2 gap-4 h-32 shrink-0">
             <button
@@ -412,7 +412,7 @@ export default function Dashboard() {
           </div>
 
           {/* System Terminal - LIVE */}
-          <div className="flex-1 min-h-0 relative">
+          <div className="flex-1 min-h-[300px] lg:min-h-0 relative">
             <div className="absolute inset-0">
               <LiveSystemLog userName={userName} integrity={displayIntegrity} />
             </div>

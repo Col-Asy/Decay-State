@@ -4,8 +4,40 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Terminal, Send, ShieldCheck, XCircle, Zap } from "lucide-react";
 
+// Hand-drawn SVG card border — seed varies the wobble per card
+const SketchyCard = ({
+  children,
+  className = "",
+  strokeColor = "rgba(255,255,255,0.18)",
+  seed = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  strokeColor?: string;
+  seed?: number;
+}) => {
+  const s = seed;
+  const path1 = `M ${2+s*0.3} ${3+s*0.15} Q 50 ${1+s*0.4}, ${98-s*0.2} ${3+s*0.1} Q 99 50, ${98-s*0.1} ${97-s*0.2} Q 50 ${99+s*0.1}, ${2+s*0.15} ${97} Q 1 50, ${2+s*0.3} ${3+s*0.15}`;
+  const path2 = `M ${4+s*0.4} 5 Q 50 ${3+s*0.3}, ${96-s*0.3} 5 Q 97 50, 96 95 Q 50 ${97+s*0.15}, ${4+s*0.2} ${95+s*0.1} Q 3 50, ${4+s*0.4} 5`;
+  const sw = 1.8 + s * 0.25;
+  return (
+    <div className={`relative ${className}`}>
+      <svg
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        preserveAspectRatio="none"
+        viewBox="0 0 100 100"
+      >
+        <path d={path1} fill="none" stroke={strokeColor} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={path2} fill="none" stroke={strokeColor} strokeWidth={sw * 0.45} strokeLinecap="round" strokeLinejoin="round" opacity="0.4" />
+      </svg>
+      <div className="relative z-10 p-5">
+        {children}
+      </div>
+    </div>
+  );
+};
+
 export const AIPrompt = () => {
-  const [step, setStep] = useState(0);
   const [input, setInput] = useState("");
 
   const conversation = [
@@ -26,9 +58,11 @@ export const AIPrompt = () => {
   ];
 
   return (
-    <section className="min-h-screen flex items-center justify-center py-12 px-6 bg-black relative">
-      <div className="w-full max-w-4xl mx-auto space-y-8">
-        <div className="text-center space-y-4">
+    <section className="min-h-screen flex items-center justify-center py-24 px-4 sm:px-6 bg-black relative overflow-hidden">
+      <div className="w-full max-w-6xl mx-auto space-y-8 px-4 md:px-8">
+
+        {/* Header */}
+        <div className="text-center space-y-3">
           <h2 className="font-display font-black text-4xl uppercase tracking-tighter">
             Enter the Protocol
           </h2>
@@ -37,16 +71,21 @@ export const AIPrompt = () => {
           </p>
         </div>
 
-        <div className="cyber-border bg-[#0a0a0a] min-h-[200px] flex flex-col">
+        {/* Terminal Container — sketchy border */}
+        <SketchyCard
+          strokeColor="rgba(255,255,255,0.12)"
+          seed={1}
+          className="bg-[#0a0a0a]"
+        >
           {/* Terminal Header */}
-          <div className="border-b border-white/5 p-4 flex justify-between items-center">
+          <div className="border-b border-white/5 -mx-5 px-4 pb-3 mb-4 flex justify-between items-center">
             <div className="flex gap-2 items-center">
               <Terminal className="w-3 h-3 text-accent" />
-              <span className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground italic">
+              <span className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground">
                 V0.9-BETA: ENCRYPTED_CHANNEL
               </span>
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1.5">
               <div className="w-2 h-2 rounded-full bg-red-500/50" />
               <div className="w-2 h-2 rounded-full bg-yellow-500/50" />
               <div className="w-2 h-2 rounded-full bg-accent/50" />
@@ -54,82 +93,89 @@ export const AIPrompt = () => {
           </div>
 
           {/* Chat Body */}
-          <div className="flex-1 p-6 font-mono text-sm space-y-6 overflow-y-auto">
+          <div className="flex-1 font-mono text-sm space-y-5 overflow-y-auto">
             <AnimatePresence>
               {conversation.map((msg, i) => (
                 <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
                   key={i}
                   className={`flex gap-4 ${msg.role === "ai" ? "text-accent" : "text-white"}`}
                 >
-                  <span className="opacity-50 shrink-0">
+                  <span className="opacity-40 shrink-0 text-[10px] pt-0.5">
                     [{msg.role.toUpperCase()}]
                   </span>
-                  <span className={msg.role === "ai" ? "glow-text" : ""}>
-                    {msg.text}
-                  </span>
+                  <span>{msg.text}</span>
                 </motion.div>
               ))}
             </AnimatePresence>
 
             <div className="flex gap-4 text-white animate-pulse">
-              <span className="opacity-50 shrink-0">[USER]</span>
+              <span className="opacity-40 shrink-0 text-[10px] pt-0.5">[USER]</span>
               <span className="border-l-2 border-accent h-5 ml-1" />
             </div>
           </div>
 
           {/* Input Bar */}
-          <div className="p-4 border-t border-white/10 flex gap-4 bg-zinc-950/50">
+          <div className="-mx-5 px-4 pt-3 mt-4 border-t border-white/8 flex gap-3 items-center bg-zinc-950/60">
             <input
               placeholder="PROMPT YOUR REALITY..."
-              className="flex-1 bg-transparent border-none outline-none text-sm uppercase tracking-widest text-white placeholder:text-white/20"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              className="flex-1 bg-transparent border-none outline-none text-sm uppercase tracking-widest text-white placeholder:text-white/20 font-mono"
             />
-            <button className="bg-accent text-black p-2 cyber-border flex items-center justify-center">
+            <button className="bg-accent text-black p-2 hover:bg-accent/80 transition-colors shrink-0">
               <Send className="w-4 h-4" />
             </button>
           </div>
-        </div>
+        </SketchyCard>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8">
-          <div className="p-4 border border-white/5 space-y-2">
-            <div className="flex items-center gap-2 text-accent">
-              <ShieldCheck className="w-4 h-4" />
-              <span className="text-[10px] font-bold uppercase tracking-widest">
-                AI Verdict
-              </span>
-            </div>
-            <p className="text-[10px] text-muted-foreground uppercase leading-relaxed tracking-wider">
-              Our AI generates your &quot;Future Self&quot; based on strict
-              inputs. If you can&apos;t verify progress, the image degrades.
-            </p>
-          </div>
-
-          <div className="p-4 border border-white/5 space-y-2">
-            <div className="flex items-center gap-2 text-red-500">
-              <XCircle className="w-4 h-4" />
-              <span className="text-[10px] font-bold uppercase tracking-widest">
-                No Support
-              </span>
-            </div>
-            <p className="text-[10px] text-muted-foreground uppercase leading-relaxed tracking-wider">
-              This isn&apos;t a cheerleader. It&apos;s a warden. It detects
-              lies, excuses, and &quot;off-days&quot; instantly.
-            </p>
-          </div>
-
-          <div className="p-4 border border-white/5 space-y-2">
-            <div className="flex items-center gap-2 text-white">
-              <Zap className="w-4 h-4" />
-              <span className="text-[10px] font-bold uppercase tracking-widest">
-                Pulse Check
-              </span>
-            </div>
-            <p className="text-[10px] text-muted-foreground uppercase leading-relaxed tracking-wider">
-              Daily verifiable check-ins. Miss 3 days and the &quot;Ruin
-              Protocol&quot; initiates.
-            </p>
-          </div>
+        {/* Feature Cards — all three with hand-drawn borders */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+          {[
+            {
+              icon: ShieldCheck,
+              title: "AI Verdict",
+              desc: "Our AI generates your \"Future Self\" based on strict inputs. If you can't verify progress, the image degrades.",
+              color: "text-accent",
+              strokeColor: "rgba(212,255,0,0.35)",
+              seed: 0,
+            },
+            {
+              icon: XCircle,
+              title: "No Support",
+              desc: "This isn't a cheerleader. It's a warden. It detects lies, excuses, and \"off-days\" instantly.",
+              color: "text-red-500",
+              strokeColor: "rgba(239,68,68,0.35)",
+              seed: 1,
+            },
+            {
+              icon: Zap,
+              title: "Pulse Check",
+              desc: "Daily verifiable check-ins. Miss 3 days and the \"Ruin Protocol\" initiates.",
+              color: "text-white",
+              strokeColor: "rgba(255,255,255,0.22)",
+              seed: 2,
+            },
+          ].map((card, i) => (
+            <SketchyCard
+              key={i}
+              strokeColor={card.strokeColor}
+              seed={card.seed}
+              className="bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+            >
+              <div className={`flex items-center gap-2 ${card.color} mb-3`}>
+                <card.icon className="w-4 h-4" />
+                <span className="text-[10px] font-bold uppercase tracking-widest font-mono">
+                  {card.title}
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground uppercase leading-relaxed tracking-wider font-mono">
+                {card.desc}
+              </p>
+            </SketchyCard>
+          ))}
         </div>
       </div>
     </section>
