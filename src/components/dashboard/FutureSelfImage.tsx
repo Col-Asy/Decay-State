@@ -262,7 +262,7 @@ export function FutureSelfImage({
         // Load high-quality Lee Perry Smith human head model
         const loader = new GLTFLoader();
         loader.load(
-          "https://unpkg.com/three@0.160.0/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb",
+          "/models/LeePerrySmith.glb",
           (gltf) => {
             if (!active) return;
 
