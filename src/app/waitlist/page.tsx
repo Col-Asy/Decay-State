@@ -135,14 +135,6 @@ export default function WaitlistPage() {
         />
       ))}
 
-      {/* Back Button */}
-      <Link
-        href="/"
-        className="absolute top-6 left-6 md:top-8 md:left-8 text-white/40 hover:text-[#d4ff00] transition-colors flex items-center gap-2 text-[10px] tracking-widest uppercase z-20 group"
-      >
-        <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
-        Return to Surface
-      </Link>
 
       {/* Dev Access — Invisible ghost link, bottom-right */}
       <Link
@@ -155,6 +147,15 @@ export default function WaitlistPage() {
       </Link>
 
       <div className="w-full max-w-2xl relative z-10">
+
+        {/* Back link — in flow, no overlap */}
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-white/40 hover:text-[#d4ff00] transition-colors text-[10px] tracking-widest uppercase mb-4 group"
+        >
+          <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />
+          Return to Surface
+        </Link>
 
         {/* Top Status Bar */}
         <motion.div
@@ -296,19 +297,34 @@ export default function WaitlistPage() {
               ) : (
                 <motion.div
                   key="success"
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="border border-[#d4ff00]/30 bg-[#d4ff00]/5 p-6 text-center space-y-3"
+                  transition={{ duration: 0.4 }}
+                  className="py-4 space-y-4"
                 >
-                  <div className="flex items-center justify-center gap-2 text-[#d4ff00]">
-                    <Zap className="w-5 h-5" />
-                    <span className="font-black text-sm tracking-[0.3em] uppercase">Protocol Queued</span>
+                  {/* Neon headline — no box */}
+                  <div className="flex items-center gap-3">
+                    <motion.div
+                      animate={{ opacity: [1, 0.3, 1] }}
+                      transition={{ duration: 1.2, repeat: Infinity }}
+                      className="w-2 h-2 rounded-full bg-[#d4ff00]"
+                    />
+                    <span className="font-display font-black text-2xl tracking-tighter text-[#d4ff00] uppercase">
+                      Protocol Queued
+                    </span>
                   </div>
-                  <p className="text-[10px] text-white/50 uppercase tracking-[0.2em]">
-                    You&apos;re in the queue. We&apos;ll notify you at <span className="text-white">{email}</span> when your slot opens.
+
+                  {/* Email confirmation — plain text */}
+                  <p className="text-[11px] text-white/40 uppercase tracking-[0.2em] leading-relaxed pl-5">
+                    Queue entry confirmed for{" "}
+                    <span className="text-white/80 normal-case">{email}</span>
+                    .<br />
+                    You&apos;ll be notified when your slot opens.
                   </p>
-                  <div className="text-[8px] text-[#d4ff00]/40 tracking-[0.3em] uppercase pt-2 border-t border-white/5">
-                    TIER_SELECTED: {tiers.find(t => t.id === selectedTier)?.name}
+
+                  {/* Tier line — minimal */}
+                  <div className="pl-5 text-[9px] text-white/20 tracking-[0.3em] uppercase font-mono">
+                    &gt; TIER_{tiers.find(t => t.id === selectedTier)?.id} · {tiers.find(t => t.id === selectedTier)?.name}
                   </div>
                 </motion.div>
               )}
