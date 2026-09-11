@@ -29,6 +29,7 @@ import { getActiveMission } from "@/lib/db/mission";
 import { shouldGenerateDailyMandates } from "@/lib/db/daily-generation";
 import { useToast } from "@/components/ui/CyberToast";
 import type { Mission } from "@/lib/db/mission";
+import { NeuralInterrogationModal } from "@/components/dashboard/NeuralInterrogationModal";
 
 export function Mandates() {
   const { user } = useAuth();
@@ -99,18 +100,27 @@ export function Mandates() {
     setTasks((prev) => prev.filter((t) => t.id !== id));
   };
 
+  const [interrogatingTask, setInterrogatingTask] = useState<Task | null>(null);
+
   const handleVerify = async (id: string) => {
-    setVerifyingId(id);
-    // Show the scanning animation for 1.5s
-    setTimeout(async () => {
-      const task = tasks.find((t) => t.id === id);
-      if (task) logActivity("mandate", `"${task.label}" → COMPLETED`, user?.id);
-      await completeMandate(id);
-      setTasks((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, completed: true } : t)),
-      );
-      setVerifyingId(null);
-    }, 1500);
+    const task = tasks.find((t) => t.id === id);
+    if (task) {
+      setInterrogatingTask(task);
+    }
+  };
+
+  const handleInterrogationConfirm = async (taskId: string, verificationNote: string) => {
+    setVerifyingId(taskId);
+    const task = tasks.find((t) => t.id === taskId);
+    if (task) {
+      logActivity("mandate", `"${task.label}" → COMPLETED [Verified: ${verificationNote.slice(0, 30)}...]`, user?.id);
+    }
+    await completeMandate(taskId);
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, completed: true } : t))
+    );
+    setVerifyingId(null);
+    showToast("[MANDATE VERIFIED & COMPLETED]");
   };
 
   const addTask = async () => {
@@ -440,6 +450,14 @@ export function Mandates() {
           </div>
         )}
       </div>
+
+      {/* Neural Interrogation Modal */}
+      <NeuralInterrogationModal
+        task={interrogatingTask}
+        isOpen={!!interrogatingTask}
+        onClose={() => setInterrogatingTask(null)}
+        onConfirm={handleInterrogationConfirm}
+      />
     </div>
   );
 }

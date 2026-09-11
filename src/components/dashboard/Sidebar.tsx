@@ -13,6 +13,7 @@ import {
   Zap,
   Menu,
   X,
+  Lock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -65,6 +66,12 @@ export function Sidebar() {
       href: "/dashboard/chat",
       icon: BrainCircuit,
       active: pathname.startsWith("/dashboard/chat"),
+    },
+    {
+      label: "Secret Vault",
+      href: "/dashboard/vault",
+      icon: Lock,
+      active: pathname.startsWith("/dashboard/vault"),
     },
     {
       label: "Accounts",

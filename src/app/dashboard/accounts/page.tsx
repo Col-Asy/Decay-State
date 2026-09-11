@@ -14,6 +14,7 @@ import {
   Loader2,
   ArrowUpRight,
   RefreshCw,
+  Clock,
 } from "lucide-react";
 import { getSubscription } from "@/lib/db/subscriptions";
 import {
@@ -42,6 +43,7 @@ interface Integration {
   icon: IconType;
   color: string;
   connected: boolean;
+  comingSoon?: boolean;
   category: "fitness" | "coding" | "productivity" | "social";
 }
 
@@ -53,6 +55,7 @@ const INTEGRATIONS: Integration[] = [
     icon: SiStrava,
     color: "#FC4C02",
     connected: false,
+    comingSoon: true,
     category: "fitness",
   },
   {
@@ -62,6 +65,7 @@ const INTEGRATIONS: Integration[] = [
     icon: SiGooglefit,
     color: "#4285F4",
     connected: false,
+    comingSoon: true,
     category: "fitness",
   },
   {
@@ -71,6 +75,7 @@ const INTEGRATIONS: Integration[] = [
     icon: SiApple,
     color: "#FF2D55",
     connected: false,
+    comingSoon: true,
     category: "fitness",
   },
   {
@@ -80,6 +85,7 @@ const INTEGRATIONS: Integration[] = [
     icon: SiLeetcode,
     color: "#FFA116",
     connected: false,
+    comingSoon: true,
     category: "coding",
   },
   {
@@ -89,6 +95,7 @@ const INTEGRATIONS: Integration[] = [
     icon: SiGithub,
     color: "#FFFFFF",
     connected: false,
+    comingSoon: true,
     category: "coding",
   },
   {
@@ -98,6 +105,7 @@ const INTEGRATIONS: Integration[] = [
     icon: SiCodeforces,
     color: "#1F8ACB",
     connected: false,
+    comingSoon: true,
     category: "coding",
   },
   {
@@ -107,6 +115,7 @@ const INTEGRATIONS: Integration[] = [
     icon: SiNotion,
     color: "#FFFFFF",
     connected: false,
+    comingSoon: true,
     category: "productivity",
   },
   {
@@ -116,6 +125,7 @@ const INTEGRATIONS: Integration[] = [
     icon: SiGooglecalendar,
     color: "#4285F4",
     connected: false,
+    comingSoon: true,
     category: "productivity",
   },
   {
@@ -125,6 +135,7 @@ const INTEGRATIONS: Integration[] = [
     icon: SiGoogledrive,
     color: "#0F9D58",
     connected: false,
+    comingSoon: true,
     category: "productivity",
   },
   {
@@ -134,6 +145,7 @@ const INTEGRATIONS: Integration[] = [
     icon: SiDiscord,
     color: "#5865F2",
     connected: false,
+    comingSoon: true,
     category: "social",
   },
 ];
@@ -327,6 +339,8 @@ export default function AccountsPage() {
   };
 
   const handleConnect = (id: string) => {
+    const target = integrations.find((i) => i.id === id);
+    if (target?.comingSoon) return;
     setConnectingId(id);
     setTimeout(() => {
       setIntegrations((prev) =>
@@ -763,9 +777,12 @@ export default function AccountsPage() {
             <div className="space-y-1">
               <div className="text-[10px] text-accent font-mono tracking-widest uppercase flex items-center gap-2">
                 <Link2 className="w-3 h-3" /> External Neural Links
+                <span className="text-[9px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono tracking-wider">
+                  COMING SOON
+                </span>
               </div>
               <div className="text-xs text-zinc-500 font-mono">
-                Connect external data sources to automate protocol verification
+                Connect external data sources to automate protocol verification (in active development)
               </div>
             </div>
             
@@ -819,11 +836,18 @@ export default function AccountsPage() {
                       >
                         <Icon className="w-6 h-6" />
                       </div>
-                      <div className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest ${
-                        item.connected ? "bg-accent/10 text-accent" : "bg-zinc-900 text-zinc-500"
-                      }`}>
-                        {item.connected ? "Active" : "Offline"}
-                      </div>
+                      {item.comingSoon ? (
+                        <div className="text-[8px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1.5 font-mono">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                          Coming Soon
+                        </div>
+                      ) : (
+                        <div className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest ${
+                          item.connected ? "bg-accent/10 text-accent" : "bg-zinc-900 text-zinc-500"
+                        }`}>
+                          {item.connected ? "Active" : "Offline"}
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-1 relative z-10">
@@ -835,23 +859,33 @@ export default function AccountsPage() {
                       </p>
                     </div>
 
-                    <button
-                      onClick={() => handleConnect(item.id)}
-                      disabled={isConnecting}
-                      className={`w-full py-2.5 text-[9px] font-bold uppercase tracking-[0.2em] border transition-all flex items-center justify-center gap-2 ${
-                        item.connected
-                          ? "border-red-500/20 text-red-500/70 hover:bg-red-500/5 hover:border-red-500/40"
-                          : "border-accent/30 text-accent hover:bg-accent/5 hover:border-accent"
-                      } disabled:opacity-50`}
-                    >
-                      {isConnecting ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : item.connected ? (
-                        "Disconnect"
-                      ) : (
-                        "Establish Link"
-                      )}
-                    </button>
+                    {item.comingSoon ? (
+                      <button
+                        disabled
+                        className="w-full py-2.5 text-[9px] font-bold uppercase tracking-[0.2em] border border-white/5 bg-white/[0.02] text-zinc-500 cursor-not-allowed flex items-center justify-center gap-2 select-none"
+                      >
+                        <Clock className="w-3 h-3 text-zinc-600" />
+                        Coming Soon
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleConnect(item.id)}
+                        disabled={isConnecting}
+                        className={`w-full py-2.5 text-[9px] font-bold uppercase tracking-[0.2em] border transition-all flex items-center justify-center gap-2 ${
+                          item.connected
+                            ? "border-red-500/20 text-red-500/70 hover:bg-red-500/5 hover:border-red-500/40"
+                            : "border-accent/30 text-accent hover:bg-accent/5 hover:border-accent"
+                        } disabled:opacity-50`}
+                      >
+                        {isConnecting ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : item.connected ? (
+                          "Disconnect"
+                        ) : (
+                          "Establish Link"
+                        )}
+                      </button>
+                    )}
 
                     {/* Corner Accents */}
                     <div className="absolute top-0 left-0 w-1 h-1 border-t border-l border-white/20" />
