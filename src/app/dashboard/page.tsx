@@ -26,6 +26,7 @@ import {
   type ShieldState,
 } from "@/lib/db/shields";
 import { useToast } from "@/components/ui/CyberToast";
+import { InterfaceEntropyOverlay } from "@/components/dashboard/InterfaceEntropyOverlay";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -178,6 +179,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 md:p-8 w-full space-y-6 md:space-y-8 min-h-screen lg:h-screen flex flex-col lg:overflow-hidden">
+      <InterfaceEntropyOverlay integrity={displayIntegrity} />
       {/* HUD Header */}
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/10 pb-4 gap-4 shrink-0">
         <div className="flex items-center gap-4">
@@ -272,25 +274,28 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Central Image */}
+            {/* Central Image - Always render 3D Wireframe Hologram */}
             <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-8 lg:p-12 z-10">
               <FutureSelfImage
                 integrity={displayIntegrity}
                 shields={shields?.count ?? 3}
-                imageUrl={mission?.image_url ?? avatarUrl}
               />
             </div>
 
             {/* Projections Gallery Button */}
-            {mission?.id && (
-              <button
-                onClick={() => setGalleryOpen(true)}
-                className="absolute top-14 left-4 z-30 text-[9px] text-zinc-500 hover:text-accent font-mono tracking-widest uppercase border border-white/10 hover:border-accent/30 px-2 py-1 bg-black/50 backdrop-blur-sm transition-all flex items-center gap-1"
-              >
-                <RefreshCw className="w-3 h-3" />
-                Projections
-              </button>
-            )}
+            <button
+              onClick={() => {
+                if (mission?.id) {
+                  setGalleryOpen(true);
+                } else {
+                  showToast("SELECT AN ACTIVE MISSION FIRST TO GENERATE PROJECTIONS");
+                }
+              }}
+              className="absolute top-14 left-4 z-30 text-[9px] text-accent font-mono tracking-widest uppercase border border-accent/30 hover:border-accent px-2 py-1 bg-black/80 backdrop-blur-sm transition-all flex items-center gap-1 shadow-lg shadow-accent/10"
+            >
+              <RefreshCw className="w-3 h-3 text-accent animate-spin-slow" />
+              PROJECTIONS
+            </button>
 
             {/* Integrity Bar */}
             <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-black via-black/85 to-transparent z-30 flex flex-col gap-3 sm:gap-4 border-t border-white/5">

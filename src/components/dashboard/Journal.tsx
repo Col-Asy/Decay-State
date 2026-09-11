@@ -11,6 +11,7 @@ import { getMissions } from "@/lib/db/mission";
 import type { Mission } from "@/lib/db/mission";
 import { uploadFile } from "@/lib/storage";
 import Image from "next/image";
+import { AntiDelusionSpotter } from "@/components/dashboard/AntiDelusionSpotter";
 
 interface MandateOption {
   id: string;
@@ -221,6 +222,7 @@ export function Journal() {
               }`}
               placeholder={isListening === "failures" ? "> LISTENING..." : "> LOG_SYSTEM_DEVIATION..."}
             />
+            {user && <AntiDelusionSpotter userId={user.id} currentFailure={failures} />}
           </div>
 
           <div className="space-y-2">

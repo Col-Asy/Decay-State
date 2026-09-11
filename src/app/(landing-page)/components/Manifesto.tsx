@@ -8,7 +8,7 @@ export const Manifesto = () => {
   return (
     <section className="min-h-screen flex items-center justify-center py-32 px-4 sm:px-6 bg-[#050505] relative overflow-hidden">
       {/* Background Noise */}
-      <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] brightness-100 contrast-150"></div>
+      <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('/noise.svg')] brightness-100 contrast-150"></div>
 
       <div className="w-full max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-20 px-2 md:px-8">
         {/* Left: The Philosophy */}
